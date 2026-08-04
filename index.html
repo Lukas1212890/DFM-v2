@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#07111f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="DFM">
+  <title>DFM – Drone Fleet Manager</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">DFM</div>
+        <div>
+          <h1>Drone Fleet Manager</h1>
+          <p id="today"></p>
+        </div>
+      </div>
+      <button class="icon-button" id="settingsBtn" aria-label="Nastavení">⚙️</button>
+    </header>
+
+    <main id="content" class="content"></main>
+
+    <button id="fab" class="fab" aria-label="Přidat">+</button>
+
+    <nav class="bottom-nav" aria-label="Hlavní navigace">
+      <button class="active" data-view="dashboard"><span>⌂</span><small>Přehled</small></button>
+      <button data-view="drones"><span>✈</span><small>Drony</small></button>
+      <button data-view="pilots"><span>👤</span><small>Piloti</small></button>
+      <button data-view="flights"><span>🛫</span><small>Lety</small></button>
+      <button data-view="tasks"><span>✓</span><small>Úkoly</small></button>
+    </nav>
+  </div>
+
+  <div id="sheet" class="sheet" aria-hidden="true">
+    <div class="sheet-panel">
+      <div class="sheet-head">
+        <div>
+          <p class="eyebrow" id="sheetEyebrow">Nová položka</p>
+          <h2 id="sheetTitle">Přidat</h2>
+        </div>
+        <button type="button" class="icon-button" data-close>×</button>
+      </div>
+      <form id="sheetForm">
+        <div id="fields" class="fields"></div>
+        <div class="sheet-actions">
+          <button type="button" class="button secondary" data-close>Zrušit</button>
+          <button type="submit" class="button primary">Uložit</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
