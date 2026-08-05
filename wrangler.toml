@@ -1,0 +1,11 @@
+name = "dfm-cloud-api"
+main = "worker/index.js"
+compatibility_date = "2026-08-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "dfm-database"
+database_id = "5b287b82-ce09-455a-8e61-57e8b1e13b16"
+
+[vars]
+ALLOWED_ORIGIN = "*"
