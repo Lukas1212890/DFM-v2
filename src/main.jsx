@@ -8,6 +8,8 @@ import './qr-scanner.css';
 import './qr-scanner';
 import './drone-filters.css';
 import './drone-filters';
+import './ui-actions.css';
+import './ui-actions';
 
 const updateSW = registerSW({
   immediate: true,
