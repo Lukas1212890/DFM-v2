@@ -21,6 +21,68 @@ function isDashboardActive() {
   return document.querySelector('.bottom-nav button.active small')?.textContent?.trim() === 'Přehled';
 }
 
+function clickNavigation(label) {
+  const button = [...document.querySelectorAll('.bottom-nav button')]
+    .find(item => item.querySelector('small')?.textContent?.trim() === label);
+  button?.click();
+}
+
+function itemTitle(item, type) {
+  if (type === 'task') return item.type === 'Ostatní' ? (item.custom || 'Ostatní') : item.type;
+  if (type === 'flight') return item.location || 'Let';
+  return item.name || '';
+}
+
+function openSingleItem(section, type, item) {
+  clickNavigation(section);
+  const expectedTitle = itemTitle(item, type);
+  let attempts = 0;
+
+  const tryOpen = () => {
+    attempts += 1;
+    const card = [...document.querySelectorAll('.content .list-item')]
+      .find(entry => entry.querySelector('h3')?.textContent?.trim() === expectedTitle);
+    const editButton = card?.querySelector('.mini-button');
+    if (editButton) {
+      editButton.click();
+      return;
+    }
+    if (attempts < 20) requestAnimationFrame(tryOpen);
+  };
+
+  requestAnimationFrame(tryOpen);
+}
+
+function connectDashboardActions(content, data, today) {
+  const openTasks = (data.tasks || []).filter(task => !(task.done === true || task.done === 'Ano'));
+  const todayTasks = openTasks.filter(task => task.dueDate === today);
+  const todayFlights = (data.flights || []).filter(flight => flight.date === today);
+
+  content.querySelector('[data-action="drones"]')?.addEventListener('click', () => clickNavigation('Drony'));
+  content.querySelector('[data-action="batteries"]')?.addEventListener('click', () => clickNavigation('Drony'));
+  content.querySelector('[data-action="pilots"]')?.addEventListener('click', () => clickNavigation('Piloti'));
+
+  const openTasksAction = () => {
+    if (openTasks.length === 1) openSingleItem('Úkoly', 'task', openTasks[0]);
+    else clickNavigation('Úkoly');
+  };
+  content.querySelector('[data-action="tasks"]')?.addEventListener('click', openTasksAction);
+  content.querySelector('[data-action="attention-tasks"]')?.addEventListener('click', openTasksAction);
+
+  content.querySelector('[data-action="claims"]')?.addEventListener('click', () => clickNavigation('Drony'));
+  content.querySelector('[data-action="accidents"]')?.addEventListener('click', () => clickNavigation('Drony'));
+
+  content.querySelector('[data-action="today-flights"]')?.addEventListener('click', () => {
+    if (todayFlights.length === 1) openSingleItem('Lety', 'flight', todayFlights[0]);
+    else clickNavigation('Lety');
+  });
+
+  content.querySelector('[data-action="today-tasks"]')?.addEventListener('click', () => {
+    if (todayTasks.length === 1) openSingleItem('Úkoly', 'task', todayTasks[0]);
+    else clickNavigation('Úkoly');
+  });
+}
+
 function renderDashboard() {
   if (!isDashboardActive()) return;
   const content = document.querySelector('.content');
@@ -51,23 +113,23 @@ function renderDashboard() {
     </section>
 
     <section class="dashboard-stats">
-      <article><span>✈</span><div><small>Drony</small><strong>${drones.length}</strong></div></article>
-      <article><span>▣</span><div><small>Baterie</small><strong>${batteryCount}</strong></div></article>
-      <article><span>👤</span><div><small>Piloti</small><strong>${pilots.length}</strong></div></article>
-      <article><span>✓</span><div><small>Otevřené úkoly</small><strong>${openTasks}</strong></div></article>
+      <article class="dashboard-link" data-action="drones" role="button" tabindex="0"><span>✈</span><div><small>Drony</small><strong>${drones.length}</strong></div></article>
+      <article class="dashboard-link" data-action="batteries" role="button" tabindex="0"><span>▣</span><div><small>Baterie</small><strong>${batteryCount}</strong></div></article>
+      <article class="dashboard-link" data-action="pilots" role="button" tabindex="0"><span>👤</span><div><small>Piloti</small><strong>${pilots.length}</strong></div></article>
+      <article class="dashboard-link" data-action="tasks" role="button" tabindex="0"><span>✓</span><div><small>Otevřené úkoly</small><strong>${openTasks}</strong></div></article>
     </section>
 
     <div class="dashboard-section-title"><p class="eyebrow">Stav flotily</p><h2>Vyžaduje pozornost</h2></div>
     <section class="dashboard-attention">
-      <article><span class="attention-dot ${openTasks ? 'orange' : 'green'}"></span><div><strong>${openTasks}</strong><small>otevřených úkolů</small></div></article>
-      <article><span class="attention-dot ${claims ? 'orange' : 'green'}"></span><div><strong>${claims}</strong><small>aktivních reklamací</small></div></article>
-      <article><span class="attention-dot ${accidents ? 'red' : 'green'}"></span><div><strong>${accidents}</strong><small>evidovaných nehod</small></div></article>
+      <article class="dashboard-link" data-action="attention-tasks" role="button" tabindex="0"><span class="attention-dot ${openTasks ? 'orange' : 'green'}"></span><div><strong>${openTasks}</strong><small>otevřených úkolů</small></div></article>
+      <article class="dashboard-link" data-action="claims" role="button" tabindex="0"><span class="attention-dot ${claims ? 'orange' : 'green'}"></span><div><strong>${claims}</strong><small>aktivních reklamací</small></div></article>
+      <article class="dashboard-link" data-action="accidents" role="button" tabindex="0"><span class="attention-dot ${accidents ? 'red' : 'green'}"></span><div><strong>${accidents}</strong><small>evidovaných nehod</small></div></article>
     </section>
 
     <div class="dashboard-section-title"><p class="eyebrow">${formatToday()}</p><h2>Dnes</h2></div>
     <section class="dashboard-today">
-      <article><span>🛫</span><div><strong>${todayFlights}</strong><small>naplánovaných letů</small></div></article>
-      <article><span>📋</span><div><strong>${todayTasks}</strong><small>úkolů na dnešek</small></div></article>
+      <article class="dashboard-link" data-action="today-flights" role="button" tabindex="0"><span>🛫</span><div><strong>${todayFlights}</strong><small>naplánovaných letů</small></div></article>
+      <article class="dashboard-link" data-action="today-tasks" role="button" tabindex="0"><span>📋</span><div><strong>${todayTasks}</strong><small>úkolů na dnešek</small></div></article>
     </section>
 
     <section class="dashboard-placeholder">
@@ -79,6 +141,16 @@ function renderDashboard() {
       <p>Dashboard bude postupně rozšířen o statistiky, upozornění a provozní widgety.</p>
     </section>
   `;
+
+  connectDashboardActions(content, data, today);
+  content.querySelectorAll('.dashboard-link').forEach(card => {
+    card.addEventListener('keydown', event => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        card.click();
+      }
+    });
+  });
 }
 
 let dashboardScheduled = false;
