@@ -22,6 +22,60 @@ function closeScanner() {
   document.body.classList.remove('qr-scanner-open');
 }
 
+async function decodePhotoFile(file, input, statusTarget = null) {
+  if (!file) return;
+  const status = statusTarget || document.querySelector('.qr-scanner-status');
+  if (status) status.textContent = 'Analyzuji fotografii…';
+
+  const objectUrl = URL.createObjectURL(file);
+  const image = new Image();
+  image.className = 'qr-hidden-image';
+  image.alt = '';
+  document.body.appendChild(image);
+
+  try {
+    await new Promise((resolve, reject) => {
+      image.onload = resolve;
+      image.onerror = reject;
+      image.src = objectUrl;
+    });
+
+    const result = await reader.decodeFromImageElement(image);
+    const text = result?.getText()?.trim();
+    if (!text) throw new Error('empty-result');
+
+    setReactInputValue(input, text);
+    if (navigator.vibrate) navigator.vibrate(80);
+    if (status) status.textContent = `Načteno z fotografie: ${text}`;
+    window.setTimeout(closeScanner, 450);
+  } catch (error) {
+    console.warn('QR photo decode failed:', error);
+    if (status) {
+      status.textContent = 'Kód se z fotografie nepodařilo přečíst. Zkus fotografii z větší blízkosti, bez odlesku a s ostrým kódem uprostřed.';
+    } else {
+      window.alert('Kód se z fotografie nepodařilo přečíst. Zkus ostřejší snímek bez odlesku.');
+    }
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+    image.remove();
+  }
+}
+
+function createPhotoInput(input, statusTarget = null) {
+  const picker = document.createElement('input');
+  picker.type = 'file';
+  picker.accept = 'image/*';
+  picker.setAttribute('capture', 'environment');
+  picker.className = 'qr-photo-input';
+  picker.addEventListener('change', async () => {
+    const file = picker.files?.[0];
+    await decodePhotoFile(file, input, statusTarget);
+    picker.remove();
+  }, { once: true });
+  document.body.appendChild(picker);
+  picker.click();
+}
+
 async function applyBestCameraSettings(track, overlay) {
   if (!track) return;
 
@@ -105,8 +159,11 @@ async function openScanner(input) {
         <div class="qr-zoom-head"><span>Přiblížení</span><strong class="qr-zoom-value">1.0×</strong></div>
         <input class="qr-zoom-slider" type="range" aria-label="Přiblížení kamery">
       </div>
-      <button type="button" class="qr-focus-button">◎ Znovu zaostřit</button>
-      <p class="qr-scanner-help">Pro velmi malý kód použij přiblížení a drž telefon o něco dál. Kód musí být dobře osvětlený a celý uvnitř rámečku.</p>
+      <div class="qr-action-grid">
+        <button type="button" class="qr-photo-button">📷 Vyfotit kód</button>
+        <button type="button" class="qr-focus-button">◎ Znovu zaostřit</button>
+      </div>
+      <p class="qr-scanner-help">U malého štítku je lepší použít „Vyfotit kód“. Telefon pořídí snímek v plném rozlišení a aplikace ho následně analyzuje.</p>
       <p class="qr-scanner-status">Spouštím kameru…</p>
       <button type="button" class="qr-scanner-cancel">Zrušit</button>
     </section>`;
@@ -120,6 +177,7 @@ async function openScanner(input) {
   overlay.querySelector('.qr-scanner-close').addEventListener('click', closeScanner);
   overlay.querySelector('.qr-scanner-cancel').addEventListener('click', closeScanner);
   overlay.querySelector('.qr-focus-button').addEventListener('click', () => refocusCamera(status));
+  overlay.querySelector('.qr-photo-button').addEventListener('click', () => createPhotoInput(input, status));
   overlay.addEventListener('click', event => {
     if (event.target === overlay) closeScanner();
   });
@@ -148,10 +206,10 @@ async function openScanner(input) {
 
     activeTrack = video.srcObject?.getVideoTracks?.()[0] || null;
     await applyBestCameraSettings(activeTrack, overlay);
-    status.textContent = 'Kamera je připravená. Pro malý kód použij přiblížení.';
+    status.textContent = 'Kamera je připravená. Pro miniaturní kód doporučuji fotografii.';
   } catch (error) {
     console.error('QR scanner error:', error);
-    status.textContent = 'Kameru se nepodařilo otevřít. Zkontroluj oprávnění ke kameře v nastavení Safari.';
+    status.textContent = 'Živou kameru se nepodařilo otevřít. Stále můžeš použít tlačítko Vyfotit kód.';
     overlay.querySelector('.qr-video-wrap').classList.add('camera-error');
   }
 }
@@ -166,13 +224,21 @@ function enhanceSerialInputs(root = document) {
     input.parentNode.insertBefore(row, input);
     row.appendChild(input);
 
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'qr-scan-button';
-    button.innerHTML = '<span aria-hidden="true">▣</span><b>Skenovat</b>';
-    button.setAttribute('aria-label', 'Naskenovat QR kód sériového čísla');
-    button.addEventListener('click', () => openScanner(input));
-    row.appendChild(button);
+    const scanButton = document.createElement('button');
+    scanButton.type = 'button';
+    scanButton.className = 'qr-scan-button';
+    scanButton.innerHTML = '<span aria-hidden="true">▣</span><b>Skenovat</b>';
+    scanButton.setAttribute('aria-label', 'Naskenovat QR kód sériového čísla');
+    scanButton.addEventListener('click', () => openScanner(input));
+    row.appendChild(scanButton);
+
+    const photoButton = document.createElement('button');
+    photoButton.type = 'button';
+    photoButton.className = 'qr-photo-inline-button';
+    photoButton.innerHTML = '<span aria-hidden="true">📷</span><b>Vyfotit</b>';
+    photoButton.setAttribute('aria-label', 'Vyfotit QR kód sériového čísla');
+    photoButton.addEventListener('click', () => createPhotoInput(input));
+    row.appendChild(photoButton);
   });
 }
 
