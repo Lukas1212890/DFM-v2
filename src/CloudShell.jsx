@@ -287,10 +287,9 @@ export default function CloudShell() {
       {authError && <p className="auth-error">{authError}</p>}
       <button disabled={authBusy}>{authBusy ? 'Přihlašuji…' : initialized ? 'Přihlásit se' : 'Vytvořit administrátora'}</button>
     </form>
-    <button className="auth-settings" onClick={() => setSetupOpen(true)}>Nastavení cloudu</button>
-  </section>{setupOpen && <div className="cloud-overlay"><form className="cloud-panel" onSubmit={saveSetup}><h2>DFM Cloud</h2><label>Adresa API<input type="url" value={apiUrl} onChange={event => setApiUrl(event.target.value)} required /></label><div><button type="button" onClick={() => setSetupOpen(false)}>Zrušit</button><button type="submit">Uložit</button></div></form></div>}</div>;
+  </section></div>;
 
-  if (authState === 'offline') return <div className="auth-screen"><section className="auth-card"><div className="auth-logo">DFM</div><h1>Cloud není dostupný</h1><p className="auth-help">Zkontrolujte internetové připojení nebo adresu API.</p><button onClick={() => window.location.reload()}>Zkusit znovu</button><button className="auth-secondary" onClick={() => setSetupOpen(true)}>Nastavení cloudu</button></section>{setupOpen && <div className="cloud-overlay"><form className="cloud-panel" onSubmit={saveSetup}><h2>DFM Cloud</h2><label>Adresa API<input type="url" value={apiUrl} onChange={event => setApiUrl(event.target.value)} required /></label><div><button type="button" onClick={() => setSetupOpen(false)}>Zrušit</button><button type="submit">Uložit</button></div></form></div>}</div>;
+  if (authState === 'offline') return <div className="auth-screen"><section className="auth-card"><div className="auth-logo">DFM</div><h1>Cloud není dostupný</h1><p className="auth-help">Zkontrolujte internetové připojení.</p><button onClick={() => window.location.reload()}>Zkusit znovu</button></section></div>;
 
   return <>
     <AppV2 />
