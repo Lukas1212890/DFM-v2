@@ -1,4 +1,4 @@
-/* Stable DFM header layout and variant A branding */
+/* Stable DFM header layout and compact vector branding */
 .topbar{
   gap:8px;
   padding-right:0;
@@ -18,33 +18,31 @@
   color:transparent!important;
   text-indent:-9999px;
   overflow:hidden!important;
+  background-image:url('./assets/dfm-logo-compact.svg');
   background-repeat:no-repeat;
   background-position:center;
   background-size:contain;
 }
 .brand-logo{
-  display:inline-block;
-  flex:0 0 92px;
-  width:92px;
-  min-width:92px;
-  height:44px;
+  display:block;
+  flex:0 0 82px;
+  width:82px;
+  min-width:82px;
+  height:38px;
   padding:0;
   line-height:1;
-  background-image:url('/DFM-v2/icons/dfm-logo-a.svg');
 }
 .auth-logo{
   width:190px;
   max-width:72vw;
   height:74px;
   margin-bottom:8px;
-  background-image:url('/DFM-v2/icons/dfm-logo-a.svg');
   background-position:left center;
 }
 .dashboard-mark{
   width:122px;
   height:54px;
   margin-inline:auto;
-  background-image:url('/DFM-v2/icons/dfm-logo-a.svg');
 }
 .brand>div:last-child{
   flex:1 1 auto;
@@ -79,10 +77,10 @@
     gap:7px;
   }
   .brand-logo{
-    flex-basis:78px;
-    width:78px;
-    min-width:78px;
-    height:38px;
+    flex-basis:72px;
+    width:72px;
+    min-width:72px;
+    height:32px;
   }
   .brand h1{
     margin:0;
@@ -119,10 +117,10 @@
     padding-right:136px;
   }
   .brand-logo{
-    flex-basis:72px;
-    width:72px;
-    min-width:72px;
-    height:35px;
+    flex-basis:66px;
+    width:66px;
+    min-width:66px;
+    height:30px;
   }
   .brand h1{
     font-size:.76rem;
