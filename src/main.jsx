@@ -11,6 +11,7 @@ import './app-v2.css';
 import './sensor-colors';
 import './admin-chat';
 import './status-indicator';
+import './logo-fix.css';
 
 const DEFAULT_CLOUD_API = 'https://dfm-cloud-api.bednarik.workers.dev';
 if (!localStorage.getItem('dfm_cloud_api_url')) {
