@@ -14,6 +14,7 @@ import './status-indicator';
 import './logo-fix.css';
 import './task-assignment.css';
 import './task-assignment';
+import './accident-pilot-select';
 import './sheet-scroll-fix.css';
 import './more-menu-cleanup.css';
 
