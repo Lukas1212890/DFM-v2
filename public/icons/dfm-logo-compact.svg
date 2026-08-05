@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 170" role="img" aria-labelledby="title desc">
+  <title id="title">DFM – Drone Fleet Manager</title>
+  <desc id="desc">Kompaktní modro-bílé logo DFM s dronem nad písmenem M.</desc>
+  <defs>
+    <linearGradient id="blue" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#79b9ff"/>
+      <stop offset="0.48" stop-color="#2d8cff"/>
+      <stop offset="1" stop-color="#0c61d8"/>
+    </linearGradient>
+    <linearGradient id="white" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#c9d5e4"/>
+    </linearGradient>
+  </defs>
+  <g fill="url(#blue)">
+    <path fill-rule="evenodd" d="M28 65h91c31 0 48 14 44 38l-3 17c-4 25-23 37-55 37H7L28 65Zm29 24-10 44h54c15 0 23-5 25-15l3-14c2-10-4-15-19-15H57Z"/>
+    <path d="M176 65h108l-6 25h-72l-4 17h64l-6 24h-64l-6 26h-35l21-92Z"/>
+  </g>
+  <path fill="url(#white)" d="M291 65h35l22 50 44-50h35l-20 92h-34l11-52-35 42h-22l-17-42-11 52h-34l26-92Z"/>
+  <g transform="translate(301 9)" fill="none" stroke="#69abff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M25 28h66M58 28v18M39 46h38"/>
+    <path d="M9 14h35M72 14h35"/>
+    <circle cx="8" cy="14" r="8"/>
+    <circle cx="108" cy="14" r="8"/>
+    <path d="M42 46 28 58M74 46l14 12"/>
+  </g>
+</svg>
