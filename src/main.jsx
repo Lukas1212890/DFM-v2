@@ -1,7 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { registerSW } from 'virtual:pwa-register';
-import AppV2 from './AppV2';
+import CloudShell from './CloudShell';
 import './styles.css';
 import './mobile-fixes.css';
 import './qr-scanner.css';
@@ -23,6 +23,6 @@ const updateSW = registerSW({
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <AppV2 />
+    <CloudShell />
   </React.StrictMode>
 );
