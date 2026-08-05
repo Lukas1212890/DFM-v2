@@ -1,7 +1,10 @@
-/* Balanced DFM header for desktop and iPhone PWA */
+/* Stable DFM header layout for desktop and iPhone PWA */
 .topbar{
   gap:8px;
   padding-right:0;
+}
+.topbar>.icon-button{
+  display:none!important;
 }
 .brand{
   flex:1 1 auto;
@@ -11,9 +14,9 @@
 }
 .brand-logo{
   display:inline-block;
-  flex:0 0 auto;
-  min-width:70px;
+  flex:0 0 70px;
   width:70px;
+  min-width:70px;
   padding:2px 5px 2px 0;
   line-height:1.05;
   overflow:visible;
@@ -23,44 +26,95 @@
   flex:1 1 auto;
   min-width:0;
 }
-.brand h1{
+.brand h1,
+.brand p{
   max-width:100%;
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
 }
-.cloud-status{
+.cloud-status,
+.user-chip{
   flex:0 0 auto;
+}
+.cloud-status{
   min-width:0!important;
   max-width:88px!important;
   padding-left:9px!important;
   padding-right:9px!important;
   white-space:nowrap!important;
 }
-.user-chip{
-  flex:0 0 auto;
-}
+
 @media(max-width:560px){
+  .topbar{
+    padding-right:142px;
+  }
   .brand{
+    width:100%;
+    padding-right:0;
     gap:7px;
-    padding-right:118px;
   }
   .brand-logo{
-    min-width:66px;
-    width:66px;
-    padding-right:4px;
-    font-size:1.42rem;
+    flex-basis:64px;
+    width:64px;
+    min-width:64px;
+    padding-right:3px;
+    font-size:1.4rem;
   }
   .brand h1{
-    font-size:.91rem;
-    letter-spacing:-.01em;
+    margin:0;
+    font-size:.82rem;
+    line-height:1.15;
+    letter-spacing:-.015em;
   }
   .brand p{
-    font-size:.7rem;
+    margin-top:4px;
+    font-size:.66rem;
+    line-height:1.15;
   }
   .cloud-status{
+    top:calc(env(safe-area-inset-top) + 22px)!important;
+    right:62px!important;
+    width:76px;
+    max-width:76px!important;
+    padding:0 8px!important;
+    font-size:.62rem!important;
+  }
+  .cloud-status::after{
+    content:none!important;
+  }
+  .user-chip{
+    top:calc(env(safe-area-inset-top) + 20px)!important;
+    right:12px!important;
+    width:42px!important;
+    height:42px!important;
+  }
+}
+
+@media(max-width:390px){
+  .topbar{
+    padding-right:136px;
+  }
+  .brand-logo{
+    flex-basis:60px;
+    width:60px;
+    min-width:60px;
+    font-size:1.32rem;
+  }
+  .brand h1{
+    font-size:.76rem;
+  }
+  .brand p{
+    font-size:.62rem;
+  }
+  .cloud-status{
+    right:58px!important;
+    width:72px;
     max-width:72px!important;
-    padding-left:7px!important;
-    padding-right:7px!important;
+  }
+  .user-chip{
+    right:10px!important;
+    width:40px!important;
+    height:40px!important;
   }
 }
