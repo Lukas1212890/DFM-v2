@@ -1,0 +1,21 @@
+.topbar .icon-button{display:none!important}
+.topbar{padding-right:126px!important}
+.user-chip{position:fixed!important;top:calc(env(safe-area-inset-top) + 20px)!important;right:12px!important;left:auto!important;width:42px!important;height:42px!important;max-width:none!important;padding:4px!important;justify-content:center!important;border-radius:14px!important;z-index:70!important}
+.user-chip>span{width:34px!important;height:34px!important}
+.user-chip div{display:none!important}
+.cloud-status{position:fixed!important;top:calc(env(safe-area-inset-top) + 22px)!important;right:64px!important;left:auto!important;height:38px!important;max-width:92px!important;padding:0 10px!important;z-index:69!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+.profile-menu{position:fixed!important;top:calc(env(safe-area-inset-top) + 68px)!important;right:12px!important;left:auto!important}
+@media(min-width:700px){
+ .topbar{padding-right:286px!important}
+ .user-chip{width:auto!important;height:42px!important;max-width:176px!important;padding:4px 10px 4px 4px!important;justify-content:flex-start!important}
+ .user-chip div{display:grid!important}
+ .cloud-status{right:198px!important;max-width:118px!important}
+}
+@media(max-width:420px){
+ .topbar{padding-right:118px!important}
+ .brand h1{font-size:1rem!important;max-width:190px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ .brand p{font-size:.72rem!important}
+ .cloud-status{right:60px!important;max-width:66px!important;padding:0 8px!important;font-size:.6rem!important}
+ .user-chip{right:10px!important;width:40px!important;height:40px!important}
+ .user-chip>span{width:32px!important;height:32px!important}
+}
