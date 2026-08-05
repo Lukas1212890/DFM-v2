@@ -25,36 +25,41 @@ async function loadDirectory(){
     const users=(await request('/admin/users')).users||[];
     cached=users.filter(x=>x.active!==0).map(x=>({id:x.id,name:x.name,email:x.email,active:x.active}));
   }catch{}
-  localStorage.setItem(DIRECTORY_KEY,JSON.stringify(cached));
+  try{localStorage.setItem(DIRECTORY_KEY,JSON.stringify(cached))}catch{}
   return cached;
 }
 
 function currentUser(){
   const chip=document.querySelector('.user-chip');
-  const name=chip?.querySelector('strong')?.textContent?.trim()||chip?.getAttribute('aria-label')||'';
+  const name=chip?.querySelector('strong')?.textContent?.trim()||'';
   let directory=[];
   try{directory=JSON.parse(localStorage.getItem(DIRECTORY_KEY)||'[]')}catch{}
   return directory.find(x=>norm(x.name)===norm(name))||{name};
 }
 
-function syncInput(input,value){
-  const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value')?.set;
+function setReactInput(input,value){
+  const proto=input instanceof HTMLSelectElement?HTMLSelectElement.prototype:HTMLInputElement.prototype;
+  const setter=Object.getOwnPropertyDescriptor(proto,'value')?.set;
   setter?.call(input,value);
   input.dispatchEvent(new Event('input',{bubbles:true}));
   input.dispatchEvent(new Event('change',{bubbles:true}));
 }
 
 async function enhanceTaskEditor(panel){
-  if(panel.dataset.taskEnhanced==='1')return;
+  if(!(panel instanceof HTMLElement)||panel.dataset.taskEnhanced==='1')return;
   const heading=panel.querySelector('.sheet-header h2');
   if(norm(heading?.textContent)!=='task')return;
   panel.dataset.taskEnhanced='1';
+
   const fields=[...panel.querySelectorAll('.form-fields > .field')];
-  const byLabel=label=>fields.find(f=>norm(f.querySelector('span')?.textContent)===norm(label));
+  const byLabel=label=>fields.find(field=>norm(field.querySelector('span')?.textContent)===norm(label));
   const typeField=byLabel('Typ úkolu');
   const customField=byLabel('Vlastní úkol');
   const assignedField=byLabel('Přiřazeno');
-  if(typeField)typeField.hidden=true;
+
+  const oldType=typeField?.querySelector('select')?.value||'';
+  if(typeField)typeField.remove();
+
   if(customField){
     const label=customField.querySelector('span');
     const input=customField.querySelector('input');
@@ -62,19 +67,21 @@ async function enhanceTaskEditor(panel){
     if(input){
       input.placeholder='Napište konkrétní úkol…';
       input.required=true;
-      if(!input.value&&typeField){
-        const oldType=typeField.querySelector('select')?.value||'';
-        if(oldType&&oldType!=='Ostatní')syncInput(input,oldType);
-      }
+      if(!input.value&&oldType&&oldType!=='Ostatní')setReactInput(input,oldType);
     }
   }
+
   if(assignedField){
     const original=assignedField.querySelector('input');
-    if(original&&!assignedField.querySelector('select')){
+    if(original){
       const directory=await loadDirectory();
+      if(!panel.isConnected)return;
       const select=document.createElement('select');
       select.className='task-assignee-select';
-      select.innerHTML='<option value="">Bez přiřazení</option>';
+      const empty=document.createElement('option');
+      empty.value='';
+      empty.textContent='Bez přiřazení';
+      select.appendChild(empty);
       const seen=new Set();
       directory.forEach(user=>{
         const name=String(user.name||user.email||'').trim();
@@ -93,7 +100,7 @@ async function enhanceTaskEditor(panel){
       }
       select.value=original.value||'';
       select.disabled=original.disabled;
-      select.addEventListener('change',()=>syncInput(original,select.value));
+      select.addEventListener('change',()=>setReactInput(original,select.value));
       original.hidden=true;
       original.insertAdjacentElement('afterend',select);
     }
@@ -107,11 +114,9 @@ function renderMyTasks(){
   try{data=JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}')}catch{}
   const me=currentUser();
   const identities=[me.name,me.email,me.id].filter(Boolean).map(norm);
-  if(!identities.length)return;
   const tasks=(data.tasks||[]).filter(task=>{
     const assigned=[task.assignedTo,task.assignedUserId,task.assignedEmail].filter(Boolean).map(norm);
-    const done=task.done===true||task.done==='Ano';
-    return !done&&assigned.some(x=>identities.includes(x));
+    return !Boolean(task.done===true||task.done==='Ano')&&assigned.some(value=>identities.includes(value));
   });
   let box=main.querySelector('.my-task-alert');
   if(!tasks.length){box?.remove();return;}
@@ -119,29 +124,50 @@ function renderMyTasks(){
     box=document.createElement('button');
     box.type='button';
     box.className='my-task-alert';
-    const welcome=main.querySelector('.dashboard-welcome');
-    welcome.insertAdjacentElement('afterend',box);
+    main.querySelector('.dashboard-welcome')?.insertAdjacentElement('afterend',box);
     box.addEventListener('click',()=>{
-      const taskButton=[...document.querySelectorAll('.dashboard-button,.attention-button')].find(x=>norm(x.textContent).includes('otevřené úkoly')||norm(x.textContent).includes('otevřených úkolů'));
-      taskButton?.click();
+      const button=[...document.querySelectorAll('.dashboard-button,.attention-button')].find(x=>norm(x.textContent).includes('otevřené úkoly')||norm(x.textContent).includes('otevřených úkolů'));
+      button?.click();
     });
   }
   const first=tasks[0];
+  const signature=`${tasks.length}:${first.id||taskTitle(first)}`;
+  if(box.dataset.signature===signature)return;
+  box.dataset.signature=signature;
   box.innerHTML=`<span class="my-task-alert-icon">!</span><div><small>Máte přiřazené úkoly</small><strong>${tasks.length} ${tasks.length===1?'otevřený úkol':'otevřené úkoly'}</strong><em>${taskTitle(first)}${tasks.length>1?` · +${tasks.length-1} další`:''}</em></div><b>›</b>`;
 }
 
-const observer=new MutationObserver(()=>{
-  document.querySelectorAll('.sheet-panel').forEach(enhanceTaskEditor);
-  renderMyTasks();
+let dashboardTimer=0;
+function scheduleDashboardRefresh(){
+  clearTimeout(dashboardTimer);
+  dashboardTimer=setTimeout(renderMyTasks,80);
+}
+
+const observer=new MutationObserver(records=>{
+  for(const record of records){
+    for(const node of record.addedNodes){
+      if(!(node instanceof HTMLElement))continue;
+      if(node.matches?.('.sheet-panel'))enhanceTaskEditor(node);
+      node.querySelectorAll?.('.sheet-panel').forEach(enhanceTaskEditor);
+      if(node.matches?.('.dashboard-welcome')||node.querySelector?.('.dashboard-welcome'))scheduleDashboardRefresh();
+    }
+  }
 });
 
 function start(){
-  loadDirectory().finally(()=>renderMyTasks());
   observer.observe(document.body,{childList:true,subtree:true});
   document.querySelectorAll('.sheet-panel').forEach(enhanceTaskEditor);
-  renderMyTasks();
-  addEventListener('storage',renderMyTasks);
-  setInterval(renderMyTasks,5000);
+  loadDirectory().finally(scheduleDashboardRefresh);
+  addEventListener('storage',event=>{if(event.key===STORAGE_KEY)scheduleDashboardRefresh()});
+  const original=Storage.prototype.setItem;
+  if(!Storage.prototype.__dfmTaskPatched){
+    Storage.prototype.setItem=function(key,value){
+      original.call(this,key,value);
+      if(this===localStorage&&key===STORAGE_KEY)scheduleDashboardRefresh();
+    };
+    Storage.prototype.__dfmTaskPatched=true;
+  }
+  scheduleDashboardRefresh();
 }
 
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
