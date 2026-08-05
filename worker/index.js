@@ -32,6 +32,15 @@ function normalizeEmail(value) {
   return String(value || '').trim().toLowerCase();
 }
 
+function normalizeAccessCode(value) {
+  return String(value || '')
+    .normalize('NFKC')
+    .trim()
+    .toUpperCase()
+    .replace(/[‐‑‒–—−]/g, '-')
+    .replace(/\s+/g, '');
+}
+
 function validCompanyEmail(email, env) {
   const domain = String(env.AUTH_DOMAIN || 'dronetech.cz').trim().toLowerCase();
   return email.endsWith(`@${domain}`) && email.length <= 254;
@@ -104,21 +113,33 @@ export default {
 
       if (url.pathname === '/health' && request.method === 'GET') {
         const count = await env.DB.prepare('SELECT COUNT(*) AS total FROM users').first();
-        return json({ ok: true, service: 'DFM Cloud API', auth: 'invite-code', initialized: Number(count?.total || 0) > 0 }, 200, origin);
+        return json({
+          ok: true,
+          service: 'DFM Cloud API',
+          auth: 'invite-code',
+          initialized: Number(count?.total || 0) > 0,
+          bootstrapConfigured: Boolean(normalizeAccessCode(env.BOOTSTRAP_CODE))
+        }, 200, origin);
       }
 
       if (url.pathname === '/auth/login' && request.method === 'POST') {
         const body = await readBody(request);
         const email = normalizeEmail(body?.email);
-        const code = String(body?.code || '').trim().toUpperCase();
-        if (!validCompanyEmail(email, env) || code.length < 6) return json({ error: 'Zadejte firemní e-mail a platný přístupový kód.' }, 400, origin);
+        const code = normalizeAccessCode(body?.code);
+        if (!validCompanyEmail(email, env) || code.length < 6) {
+          return json({ error: 'Zadejte firemní e-mail a platný přístupový kód.' }, 400, origin);
+        }
 
         let user = await env.DB.prepare('SELECT id,email,name,role,active FROM users WHERE email=?').bind(email).first();
         const count = await env.DB.prepare('SELECT COUNT(*) AS total FROM users').first();
         const isFirstUser = Number(count?.total || 0) === 0;
 
         if (isFirstUser) {
-          if (!env.BOOTSTRAP_CODE || code !== String(env.BOOTSTRAP_CODE).trim().toUpperCase()) {
+          const bootstrapCode = normalizeAccessCode(env.BOOTSTRAP_CODE);
+          if (!bootstrapCode) {
+            return json({ error: 'Startovací kód není ve Workeru nastavený.' }, 503, origin);
+          }
+          if (code !== bootstrapCode) {
             return json({ error: 'Nesprávný startovací kód administrátora.' }, 401, origin);
           }
           const id = crypto.randomUUID();
