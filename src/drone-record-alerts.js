@@ -41,6 +41,13 @@ function hasRecords(drone){
   return c.accidents||c.claims||c.services;
 }
 
+function findDetailDrone(){
+  const hero=document.querySelector('.detail-hero');
+  if(!hero)return null;
+  const name=hero.querySelector('.detail-row h2')?.textContent?.trim();
+  return loadDrones().find(item=>item.name===name)||null;
+}
+
 function refreshDroneCards(){
   const drones=loadDrones();
   const heading=[...document.querySelectorAll('.section-title h2')].find(node=>node.textContent.trim()==='Drony');
@@ -61,15 +68,42 @@ function refreshDroneCards(){
   });
 }
 
+function refreshDetailTabCounts(drone){
+  const tabs=document.querySelector('.detail-hero')?.parentElement?.querySelector('.tabs');
+  if(!tabs||!drone)return;
+  const counts=recordCounts(drone);
+  const config={
+    nehody:{count:counts.accidents,kind:'accident'},
+    reklamace:{count:counts.claims,kind:'claim'},
+    servis:{count:counts.services,kind:'service'}
+  };
+  [...tabs.querySelectorAll('button')].forEach(button=>{
+    const base=(button.dataset.recordBaseLabel||button.childNodes[0]?.textContent||button.textContent||'').trim();
+    button.dataset.recordBaseLabel=base;
+    const item=config[base.toLocaleLowerCase('cs-CZ')];
+    if(!item)return;
+    const current=button.querySelector('.drone-tab-count');
+    if(!item.count){
+      current?.remove();
+      return;
+    }
+    const count=current||document.createElement('span');
+    count.className=`drone-tab-count ${item.kind}`;
+    count.textContent=String(item.count);
+    count.setAttribute('aria-label',`${item.count} záznamů`);
+    if(!current)button.appendChild(count);
+  });
+}
+
 function refreshDroneDetail(){
-  const drones=loadDrones();
   const hero=document.querySelector('.detail-hero');
   if(!hero)return;
   hero.querySelector('.drone-record-badges.detail')?.remove();
   hero.classList.remove('has-accident-alert');
-  const name=hero.querySelector('.detail-row h2')?.textContent?.trim();
-  const drone=drones.find(item=>item.name===name);
-  if(!drone||!hasRecords(drone))return;
+  const drone=findDetailDrone();
+  if(!drone)return;
+  refreshDetailTabCounts(drone);
+  if(!hasRecords(drone))return;
   const badges=buildBadges(drone);
   badges.classList.add('detail');
   const sensorTags=hero.querySelector(':scope > .sensor-tags');
