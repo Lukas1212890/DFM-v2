@@ -21,6 +21,8 @@ import './sheet-scroll-fix.css';
 import './more-menu-cleanup.css';
 import './drone-record-alerts.css';
 import './drone-record-alerts';
+import './drone-offices.css';
+import './drone-offices';
 
 const DEFAULT_CLOUD_API = 'https://dfm-cloud-api.bednarik.workers.dev';
 if (!localStorage.getItem('dfm_cloud_api_url')) {
