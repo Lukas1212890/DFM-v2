@@ -1,26 +1,36 @@
-# DFM v2 – Drone Fleet Manager
+# DFM React PWA
 
-Čistý mobilní projekt bez service workeru. Změny se proto načítají standardně z GitHub Pages a aplikace si nedrží starou offline cache.
+Moderní React PWA postavená přes Vite a vite-plugin-pwa.
 
-## Funkce
+## Lokální spuštění
 
-- Přehled flotily
-- Dron jako hlavní technická sestava
-- Baterie uvnitř konkrétního dronu
-- Příslušenství uvnitř konkrétního dronu
-- Nehody, reklamace a servis u dronu
-- Piloti
-- Letový deník
-- Úkoly
-- Export a import JSON
-- Data uložená v localStorage telefonu
+```bash
+npm install
+npm run dev
+```
 
-## Nasazení na GitHub Pages
+## Produkční build
 
-Nahraj obsah této složky přímo do kořene repozitáře. V kořenu musí být soubory `index.html`, `app.css`, `app.js`, `manifest.webmanifest` a složka `icons`.
+```bash
+npm run build
+```
 
-V GitHubu nastav `Settings → Pages → Deploy from a branch → main → /(root)`.
+## GitHub Pages
 
-## Poznámka k ikoně na iPhonu
+Projekt obsahuje workflow `.github/workflows/deploy.yml`.
 
-iOS ikonu aplikace ukládá samostatně. Změna ikony se často projeví až po odstranění staré ikony z plochy a novém přidání ze Safari.
+V GitHubu nastav:
+
+1. Settings
+2. Pages
+3. Source: GitHub Actions
+
+Po každém pushi do `main` se aplikace automaticky sestaví a publikuje.
+
+## Aktualizace PWA
+
+PWA používá `registerType: autoUpdate`. Když je dostupná nová verze, aplikace nabídne její okamžité načtení.
+
+## Data
+
+Data se ukládají lokálně v prohlížeči přes `localStorage`.
