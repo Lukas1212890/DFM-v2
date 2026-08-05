@@ -2,6 +2,7 @@ const SENSOR_FILTERS = ['RGB', 'Termokamera', 'Multispektrál', 'LiDAR', 'RTK', 
 
 let searchText = '';
 let selectedSensors = new Set();
+let updating = false;
 
 function normalize(value) {
   return String(value || '')
@@ -11,62 +12,77 @@ function normalize(value) {
     .trim();
 }
 
-function findDroneLists() {
-  return [...document.querySelectorAll('.list')].filter(list =>
-    list.querySelector('.list-item .item-icon')?.textContent?.trim() === '✈'
-  );
+function isDroneView() {
+  const activeLabel = document.querySelector('.bottom-nav button.active small')?.textContent?.trim();
+  return activeLabel === 'Drony';
+}
+
+function findPrimaryDroneList() {
+  return [...document.querySelectorAll('.content .list')].find(list =>
+    [...list.querySelectorAll(':scope > .list-item')].some(card =>
+      card.querySelector('.item-icon')?.textContent?.trim() === '✈'
+    )
+  ) || null;
 }
 
 function getDroneCards(list) {
+  if (!list) return [];
   return [...list.querySelectorAll(':scope > .list-item')].filter(card =>
     card.querySelector('.item-icon')?.textContent?.trim() === '✈'
   );
 }
 
+function removeDuplicatePanels() {
+  const panels = [...document.querySelectorAll('.drone-filter-panel')];
+  panels.slice(1).forEach(panel => panel.remove());
+}
+
+function removeAllPanels() {
+  document.querySelectorAll('.drone-filter-panel').forEach(panel => panel.remove());
+  document.querySelectorAll('.drone-filter-empty').forEach(el => el.remove());
+}
+
 function applyFilters() {
+  if (!isDroneView()) return;
+
+  const list = findPrimaryDroneList();
+  if (!list) return;
+
   const query = normalize(searchText);
-  let totalVisible = 0;
+  const cards = getDroneCards(list);
+  let visibleCount = 0;
 
-  findDroneLists().forEach(list => {
-    const cards = getDroneCards(list);
-    let visibleInList = 0;
+  cards.forEach(card => {
+    const searchableText = normalize(card.textContent);
+    const cardSensors = new Set(
+      [...card.querySelectorAll('.sensor-tag')].map(tag => tag.textContent.trim())
+    );
 
-    cards.forEach(card => {
-      const searchableText = normalize(card.textContent);
-      const cardSensors = new Set(
-        [...card.querySelectorAll('.sensor-tag')].map(tag => tag.textContent.trim())
-      );
+    const matchesSearch = !query || searchableText.includes(query);
+    const matchesSensors = [...selectedSensors].every(sensor => cardSensors.has(sensor));
+    const visible = matchesSearch && matchesSensors;
 
-      const matchesSearch = !query || searchableText.includes(query);
-      const matchesSensors = [...selectedSensors].every(sensor => cardSensors.has(sensor));
-      const visible = matchesSearch && matchesSensors;
-
-      card.hidden = !visible;
-      if (visible) {
-        visibleInList += 1;
-        totalVisible += 1;
-      }
-    });
-
-    let empty = list.querySelector(':scope > .drone-filter-empty');
-    if (!empty) {
-      empty = document.createElement('div');
-      empty.className = 'empty drone-filter-empty';
-      empty.textContent = 'Žádný dron neodpovídá vyhledávání nebo zvoleným senzorům.';
-      list.appendChild(empty);
-    }
-    empty.hidden = visibleInList > 0 || cards.length === 0;
+    card.hidden = !visible;
+    if (visible) visibleCount += 1;
   });
 
+  let empty = list.querySelector(':scope > .drone-filter-empty');
+  if (!empty) {
+    empty = document.createElement('div');
+    empty.className = 'empty drone-filter-empty';
+    empty.textContent = 'Žádný dron neodpovídá vyhledávání nebo zvoleným senzorům.';
+    list.appendChild(empty);
+  }
+  empty.hidden = visibleCount > 0 || cards.length === 0;
+
   document.querySelectorAll('.drone-filter-count').forEach(el => {
-    el.textContent = `${totalVisible} nalezeno`;
+    el.textContent = `${visibleCount} nalezeno`;
   });
 }
 
 function createControls() {
   const panel = document.createElement('section');
   panel.className = 'drone-filter-panel';
-  panel.dataset.droneFilterPanel = 'true';
   panel.innerHTML = `
     <div class="drone-search-row">
       <label class="drone-search-box">
@@ -123,6 +139,7 @@ function createControls() {
       reset.hidden = selectedSensors.size === 0;
       applyFilters();
     });
+
     chips.appendChild(button);
   });
 
@@ -140,28 +157,47 @@ function createControls() {
   return panel;
 }
 
-function enhanceDroneLists() {
-  const lists = findDroneLists();
-  if (!lists.length) return;
+function syncDroneFilters() {
+  if (updating) return;
+  updating = true;
 
-  lists.forEach(list => {
-    if (list.previousElementSibling?.dataset?.droneFilterPanel === 'true') return;
-    list.parentNode.insertBefore(createControls(), list);
-  });
+  try {
+    if (!isDroneView()) {
+      removeAllPanels();
+      return;
+    }
 
-  applyFilters();
+    const list = findPrimaryDroneList();
+    if (!list) {
+      removeAllPanels();
+      return;
+    }
+
+    removeDuplicatePanels();
+
+    let panel = document.querySelector('.drone-filter-panel');
+    if (!panel || panel.nextElementSibling !== list) {
+      panel?.remove();
+      panel = createControls();
+      list.parentNode.insertBefore(panel, list);
+    }
+
+    applyFilters();
+  } finally {
+    updating = false;
+  }
 }
 
 let scheduled = false;
 const observer = new MutationObserver(() => {
-  if (scheduled) return;
+  if (scheduled || updating) return;
   scheduled = true;
   requestAnimationFrame(() => {
     scheduled = false;
-    enhanceDroneLists();
+    syncDroneFilters();
   });
 });
 
 observer.observe(document.documentElement, { childList: true, subtree: true });
-document.addEventListener('DOMContentLoaded', enhanceDroneLists);
-enhanceDroneLists();
+document.addEventListener('DOMContentLoaded', syncDroneFilters);
+syncDroneFilters();
