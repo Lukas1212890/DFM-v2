@@ -6,6 +6,8 @@ import './styles.css';
 import './mobile-fixes.css';
 import './qr-scanner.css';
 import './qr-scanner';
+import './drone-filters.css';
+import './drone-filters';
 
 const updateSW = registerSW({
   immediate: true,
