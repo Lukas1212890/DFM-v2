@@ -9,6 +9,7 @@ import './qr-scanner';
 import './ui-actions.css';
 import './app-v2.css';
 import './sensor-colors';
+import './admin-chat';
 
 const DEFAULT_CLOUD_API = 'https://dfm-cloud-api.bednarik.workers.dev';
 if (!localStorage.getItem('dfm_cloud_api_url')) {
