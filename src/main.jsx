@@ -8,6 +8,7 @@ import './qr-scanner.css';
 import './qr-scanner';
 import './ui-actions.css';
 import './app-v2.css';
+import './sensor-colors';
 
 const updateSW = registerSW({
   immediate: true,
