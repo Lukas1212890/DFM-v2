@@ -1,0 +1,90 @@
+/* Mobilní bezpečnostní pojistky: aplikace se smí posouvat pouze svisle. */
+html,
+body,
+#root {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  overscroll-behavior-x: none;
+}
+
+body {
+  position: relative;
+  touch-action: pan-y;
+}
+
+.app-shell,
+.content,
+.sheet-backdrop,
+.sheet-panel,
+.sheet-panel form,
+.form-fields,
+.field,
+.detail-hero,
+.detail-grid,
+.list,
+.list-item {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.app-shell {
+  overflow-x: clip;
+}
+
+.sheet-backdrop {
+  overflow-x: hidden;
+  touch-action: pan-y;
+}
+
+.sheet-panel {
+  box-sizing: border-box;
+  overflow-x: hidden;
+  overscroll-behavior-x: none;
+}
+
+.sheet-panel form,
+.form-fields {
+  overflow-x: hidden;
+}
+
+.field input,
+.field select,
+.field textarea {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.field textarea {
+  resize: vertical;
+}
+
+.sheet-header,
+.sheet-actions,
+.detail-row,
+.detail-actions,
+.section-title {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.sheet-header > *,
+.detail-row > *,
+.section-title > * {
+  min-width: 0;
+}
+
+@supports (overflow: clip) {
+  html,
+  body,
+  #root,
+  .app-shell,
+  .sheet-backdrop,
+  .sheet-panel {
+    overflow-x: clip;
+  }
+}
