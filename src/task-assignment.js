@@ -2,11 +2,11 @@ const STORAGE_KEY='dfm_react_pwa_v1';
 const SESSION_KEY='dfm_auth_session';
 const API='https://dfm-cloud-api.bednarik.workers.dev';
 const DIRECTORY_KEY='dfm_user_directory';
-const TASK_SEPARATOR='\n<<<DFM_TASK_TEXT>>>\n';
+const TASK_MARKER='<<<DFM_TASK_TEXT>>>';
 
 const norm=value=>String(value||'').trim().toLocaleLowerCase('cs-CZ');
-const unpackTask=value=>{const raw=String(value||'');const index=raw.indexOf(TASK_SEPARATOR);return index<0?{title:raw.trim(),text:''}:{title:raw.slice(0,index).trim(),text:raw.slice(index+TASK_SEPARATOR.length).trim()}};
-const packTask=(title,text)=>`${String(title||'').trim()}${TASK_SEPARATOR}${String(text||'').trim()}`;
+const unpackTask=value=>{const raw=String(value||'');const index=raw.indexOf(TASK_MARKER);return index<0?{title:raw.trim(),text:''}:{title:raw.slice(0,index).trim(),text:raw.slice(index+TASK_MARKER.length).trim()}};
+const packTask=(title,text)=>`${String(title||'').trim()}${TASK_MARKER}${String(text||'').trim()}`;
 const taskTitle=task=>{const packed=unpackTask(task?.custom);return packed.title||String(task?.title||(task?.type&&task.type!=='Ostatní'?task.type:'')||'Úkol').trim()};
 
 async function request(path){
