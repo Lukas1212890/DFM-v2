@@ -11,28 +11,23 @@ function loadDrones(){
   catch{return[]}
 }
 
+function addCompactBadge(wrap,{kind,icon,count,label}){
+  if(!count)return;
+  const badge=document.createElement('span');
+  badge.className=`drone-record-badge ${kind}`;
+  badge.textContent=`${icon} ${count}`;
+  badge.title=`${label}: ${count}`;
+  badge.setAttribute('aria-label',`${label}: ${count}`);
+  wrap.appendChild(badge);
+}
+
 function buildBadges(drone){
   const counts=recordCounts(drone);
   const wrap=document.createElement('div');
   wrap.className='drone-record-badges';
-  if(counts.accidents){
-    const badge=document.createElement('span');
-    badge.className='drone-record-badge accident';
-    badge.textContent=`🚨 Nehoda${counts.accidents>1?` · ${counts.accidents}`:''}`;
-    wrap.appendChild(badge);
-  }
-  if(counts.claims){
-    const badge=document.createElement('span');
-    badge.className='drone-record-badge claim';
-    badge.textContent=`⚠️ Reklamace${counts.claims>1?` · ${counts.claims}`:''}`;
-    wrap.appendChild(badge);
-  }
-  if(counts.services){
-    const badge=document.createElement('span');
-    badge.className='drone-record-badge service';
-    badge.textContent=`🔧 Servis${counts.services>1?` · ${counts.services}`:''}`;
-    wrap.appendChild(badge);
-  }
+  addCompactBadge(wrap,{kind:'accident',icon:'🚨',count:counts.accidents,label:'Nehody'});
+  addCompactBadge(wrap,{kind:'claim',icon:'⚠️',count:counts.claims,label:'Reklamace'});
+  addCompactBadge(wrap,{kind:'service',icon:'🔧',count:counts.services,label:'Servis'});
   return wrap;
 }
 
