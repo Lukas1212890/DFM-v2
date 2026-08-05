@@ -14,6 +14,8 @@ import './settings-panel';
 import './drone-remove';
 import './editor-delete';
 import './restore-section';
+import './dashboard.css';
+import './dashboard';
 
 const updateSW = registerSW({
   immediate: true,
