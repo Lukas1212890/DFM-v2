@@ -1,21 +1,13 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { registerSW } from 'virtual:pwa-register';
-import App from './App';
+import AppV2 from './AppV2';
 import './styles.css';
 import './mobile-fixes.css';
 import './qr-scanner.css';
 import './qr-scanner';
-import './drone-filters.css';
-import './drone-filters';
 import './ui-actions.css';
-import './ui-actions';
-import './settings-panel';
-import './drone-remove';
-import './editor-delete';
-import './restore-section';
-import './dashboard.css';
-import './dashboard';
+import './app-v2.css';
 
 const updateSW = registerSW({
   immediate: true,
@@ -30,6 +22,6 @@ const updateSW = registerSW({
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <App />
+    <AppV2 />
   </React.StrictMode>
 );
