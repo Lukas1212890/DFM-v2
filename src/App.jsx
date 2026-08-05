@@ -4,6 +4,8 @@ const STORAGE_KEY = 'dfm_react_pwa_v1';
 
 const uid = () => crypto.randomUUID();
 
+const SENSOR_OPTIONS = ['RGB','Termokamera','Multispektrál','LiDAR','RTK','Noční vidění'];
+
 const initialData = {
   drones: [
     {
@@ -14,6 +16,7 @@ const initialData = {
       serial: '',
       status: 'Aktivní',
       careUntil: '',
+      sensors: ['RGB','Termokamera','RTK'],
       notes: '',
       batteries: [
         { id: uid(), number: 'Baterie 01', serial: '', cycles: 0, notes: '' },
@@ -36,6 +39,7 @@ const initialData = {
       serial: '',
       status: 'Aktivní',
       careUntil: '',
+      sensors: ['RGB','Multispektrál','RTK'],
       notes: '',
       batteries: [],
       accessories: [],
@@ -65,6 +69,7 @@ const schema = {
     ['serial','Výrobní číslo','text',false],
     ['status','Stav','select',['Aktivní','Servis','Vyřazený']],
     ['careUntil','DJI Care do','date',false],
+    ['sensors','Senzory a technologie','multiSelect',SENSOR_OPTIONS],
     ['notes','Poznámka','textarea',false]
   ],
   battery: [
@@ -320,6 +325,25 @@ function SectionTitle({ eyebrow, title, badge }) {
   return <div className="section-title"><div><p className="eyebrow">{eyebrow}</p><h2>{title}</h2></div>{badge !== undefined && <span className="badge">{badge}</span>}</div>;
 }
 
+function SensorBadges({ sensors = [] }) {
+  if (!sensors?.length) return null;
+  const classes = {
+    RGB: 'sensor-rgb',
+    Termokamera: 'sensor-thermal',
+    Multispektrál: 'sensor-multi',
+    LiDAR: 'sensor-lidar',
+    RTK: 'sensor-rtk',
+    'Noční vidění': 'sensor-night'
+  };
+  return (
+    <div className="sensor-tags">
+      {sensors.map(sensor => (
+        <span key={sensor} className={`sensor-tag ${classes[sensor] || ''}`}>{sensor}</span>
+      ))}
+    </div>
+  );
+}
+
 function DroneCard({ drone, onClick }) {
   return (
     <article className="list-item" onClick={onClick}>
@@ -327,6 +351,7 @@ function DroneCard({ drone, onClick }) {
       <div className="item-main">
         <h3>{drone.name}</h3>
         <p>{drone.model} · {drone.batteries.length} baterií · {drone.accessories.length} příslušenství</p>
+        <SensorBadges sensors={drone.sensors} />
       </div>
       <span className={`badge ${drone.status==='Aktivní'?'green':''}`}>{drone.status}</span>
     </article>
@@ -350,6 +375,7 @@ function DroneDetail({ drone, tab, setTab, back, editDrone, addBattery, addAcces
           <div><h2>{drone.name}</h2><p>{drone.model}</p></div>
           <span className="badge green">{drone.status}</span>
         </div>
+        <SensorBadges sensors={drone.sensors} />
         <div className="detail-actions">
           <button className="primary-button" onClick={editDrone}>Upravit dron</button>
           <button className="secondary-button" onClick={addAccessory}>Přidat vybavení</button>
@@ -474,6 +500,30 @@ function EditorSheet({ editor, data, onClose, onSave }) {
 
               if (fieldType === 'textarea') {
                 return <label className="field full" key={name}><span>{label}{required===true?' *':''}</span><textarea {...common} /></label>;
+              }
+
+              if (fieldType === 'multiSelect') {
+                const selected = Array.isArray(form[name]) ? form[name] : [];
+                return (
+                  <fieldset className="field full sensor-picker" key={name}>
+                    <legend>{label}</legend>
+                    <div className="sensor-picker-grid">
+                      {required.map(option => {
+                        const checked = selected.includes(option);
+                        return (
+                          <label key={option} className={`sensor-choice ${checked ? 'selected' : ''}`}>
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => update(name, checked ? selected.filter(x => x !== option) : [...selected, option])}
+                            />
+                            <span>{option}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </fieldset>
+                );
               }
 
               if (fieldType === 'select') {
