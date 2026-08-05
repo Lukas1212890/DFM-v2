@@ -11,6 +11,7 @@ import './drone-filters';
 import './ui-actions.css';
 import './ui-actions';
 import './settings-panel';
+import './drone-remove';
 
 const updateSW = registerSW({
   immediate: true,
