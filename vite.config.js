@@ -8,7 +8,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icons/dfm-icon-a.svg', 'icons/dfm-logo-a.svg'],
+      includeAssets: ['icons/dfm-icon-compact.svg', 'icons/dfm-logo-compact.svg'],
       manifest: {
         name: 'DFM – Drone Fleet Manager',
         short_name: 'DFM',
@@ -20,8 +20,8 @@ export default defineConfig({
         start_url: './',
         scope: './',
         icons: [
-          { src: 'icons/dfm-icon-a.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
-          { src: 'icons/dfm-icon-a.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'maskable' }
+          { src: 'icons/dfm-icon-compact.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
+          { src: 'icons/dfm-icon-compact.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'maskable' }
         ]
       },
       workbox: {
