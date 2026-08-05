@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">DFM</title>
+  <desc id="desc">Tmavá ikona aplikace DFM s modro-bílým logem a dronem.</desc>
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="22%" r="88%">
+      <stop offset="0" stop-color="#173b70"/>
+      <stop offset="0.52" stop-color="#0b1c34"/>
+      <stop offset="1" stop-color="#06101e"/>
+    </radialGradient>
+    <linearGradient id="blue" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#75b5ff"/>
+      <stop offset="0.55" stop-color="#2d8cff"/>
+      <stop offset="1" stop-color="#0d61d5"/>
+    </linearGradient>
+    <linearGradient id="white" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#c2d0e2"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#000" flood-opacity=".35"/>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <rect x="14" y="14" width="484" height="484" rx="100" fill="none" stroke="#9ec8ff" stroke-opacity=".16" stroke-width="4"/>
+  <g filter="url(#shadow)">
+    <g transform="translate(49 220) skewX(-10)">
+      <text x="0" y="108" font-family="Arial Black,Arial,sans-serif" font-size="142" font-weight="900" letter-spacing="-14" fill="url(#blue)">DF</text>
+      <text x="264" y="108" font-family="Arial Black,Arial,sans-serif" font-size="142" font-weight="900" letter-spacing="-10" fill="url(#white)">M</text>
+    </g>
+    <g transform="translate(310 139)" fill="none" stroke="#72b3ff" stroke-width="9" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M32 27h76M70 27v28M42 55h56"/>
+      <path d="M15 13h34M92 13h34"/>
+      <circle cx="14" cy="13" r="13"/>
+      <circle cx="128" cy="13" r="13"/>
+      <path d="M47 55L30 74M94 55l17 19"/>
+    </g>
+  </g>
+</svg>
