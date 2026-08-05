@@ -10,6 +10,7 @@ import './drone-filters.css';
 import './drone-filters';
 import './ui-actions.css';
 import './ui-actions';
+import './settings-panel';
 
 const updateSW = registerSW({
   immediate: true,
