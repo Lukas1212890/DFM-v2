@@ -44,6 +44,19 @@
   height:54px;
   margin-inline:auto;
 }
+.dfm-logo-image{
+  display:block;
+  width:100%;
+  height:100%;
+  max-width:100%;
+  object-fit:contain;
+  object-position:center;
+  pointer-events:none;
+  user-select:none;
+}
+.auth-logo .dfm-logo-image{
+  object-position:left center;
+}
 .brand>div:last-child{
   flex:1 1 auto;
   min-width:0;
