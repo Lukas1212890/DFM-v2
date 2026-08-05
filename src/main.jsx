@@ -10,6 +10,11 @@ import './ui-actions.css';
 import './app-v2.css';
 import './sensor-colors';
 
+const DEFAULT_CLOUD_API = 'https://dfm-cloud-api.bednarik.workers.dev';
+if (!localStorage.getItem('dfm_cloud_api_url')) {
+  localStorage.setItem('dfm_cloud_api_url', DEFAULT_CLOUD_API);
+}
+
 const updateSW = registerSW({
   immediate: true,
   onNeedRefresh() {
