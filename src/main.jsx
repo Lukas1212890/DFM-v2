@@ -12,6 +12,7 @@ import './ui-actions.css';
 import './ui-actions';
 import './settings-panel';
 import './drone-remove';
+import './editor-delete';
 
 const updateSW = registerSW({
   immediate: true,
