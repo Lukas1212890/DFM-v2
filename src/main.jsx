@@ -15,6 +15,7 @@ import './logo-fix.css';
 import './task-assignment.css';
 import './task-assignment';
 import './sheet-scroll-fix.css';
+import './more-menu-cleanup.css';
 
 const DEFAULT_CLOUD_API = 'https://dfm-cloud-api.bednarik.workers.dev';
 if (!localStorage.getItem('dfm_cloud_api_url')) {
