@@ -12,6 +12,7 @@ import './sensor-colors';
 import './admin-chat';
 import './status-indicator';
 import './logo-fix.css';
+import './header-logo';
 import './task-assignment.css';
 import './task-assignment';
 import './dashboard-task-alert-position';
