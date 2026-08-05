@@ -1,0 +1,81 @@
+.sheet-backdrop{
+  display:flex;
+  align-items:flex-end;
+  justify-content:center;
+  overflow:hidden;
+  padding-top:env(safe-area-inset-top);
+}
+
+.sheet-panel{
+  position:relative;
+  left:auto;
+  right:auto;
+  bottom:auto;
+  width:min(100%,780px);
+  max-height:calc(100dvh - env(safe-area-inset-top));
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  overscroll-behavior:contain;
+}
+
+.sheet-header{
+  flex:0 0 auto;
+}
+
+.sheet-panel form{
+  min-height:0;
+  flex:1 1 auto;
+  display:grid;
+  grid-template-rows:minmax(0,1fr) auto;
+  max-height:none;
+  overflow:hidden;
+}
+
+.sheet-panel form>fieldset{
+  min-height:0;
+  height:100%;
+  overflow:hidden;
+}
+
+.form-fields{
+  min-height:0;
+  height:100%;
+  overflow-y:auto;
+  overflow-x:hidden;
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior:contain;
+  scroll-padding-top:18px;
+  scroll-padding-bottom:150px;
+  padding-bottom:150px;
+  touch-action:pan-y;
+}
+
+.sheet-actions{
+  position:relative;
+  z-index:3;
+  flex:0 0 auto;
+  background:#0b1726;
+  box-shadow:0 -12px 28px rgba(7,17,31,.88);
+}
+
+.field input,
+.field select,
+.field textarea{
+  scroll-margin-top:20px;
+  scroll-margin-bottom:170px;
+}
+
+@media(min-width:680px){
+  .sheet-backdrop{align-items:center;padding:16px}
+  .sheet-panel{
+    width:min(660px,calc(100vw - 32px));
+    max-height:calc(100dvh - 32px);
+    border-radius:22px;
+  }
+}
+
+@supports(height:100svh){
+  .sheet-panel{max-height:calc(100svh - env(safe-area-inset-top))}
+  @media(min-width:680px){.sheet-panel{max-height:calc(100svh - 32px)}}
+}
