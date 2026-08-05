@@ -1,5 +1,5 @@
 const json=(data,status=200,origin='*')=>new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json; charset=utf-8','access-control-allow-origin':origin,'access-control-allow-methods':'GET,POST,PUT,DELETE,OPTIONS','access-control-allow-headers':'content-type,authorization','cache-control':'no-store'}});
-const DAY_MS=86400000,SESSION_DAYS=365,PASSWORD_ITERATIONS=150000;
+const DAY_MS=86400000,SESSION_DAYS=365,PASSWORD_ITERATIONS=100000;
 function allowedOrigin(request,env){const origin=request.headers.get('origin')||'*';if(!env.ALLOWED_ORIGIN||env.ALLOWED_ORIGIN==='*')return'*';return origin===env.ALLOWED_ORIGIN?origin:env.ALLOWED_ORIGIN;}
 async function readBody(request){try{return await request.json();}catch{return null;}}
 async function sha256(value){const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value));return[...new Uint8Array(digest)].map(x=>x.toString(16).padStart(2,'0')).join('');}
