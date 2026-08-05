@@ -1,0 +1,5 @@
+.more-menu-grid > button:nth-child(3),
+.more-menu-grid > button:nth-child(4),
+.more-menu-grid > button:nth-child(5) {
+  display: none;
+}
