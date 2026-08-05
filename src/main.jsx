@@ -4,6 +4,7 @@ import { registerSW } from 'virtual:pwa-register';
 import App from './App';
 import './styles.css';
 import './mobile-fixes.css';
+import './qr-scanner.css';
 import './qr-scanner';
 
 const updateSW = registerSW({
