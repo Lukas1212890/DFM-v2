@@ -16,7 +16,7 @@ function loadData() {
   }
 }
 
-function AppV2() {
+function AppV2({ permissions = {} }) {
   const [data, setData] = useState(loadData);
   const [view, setView] = useState('dashboard');
   const [selectedDroneId, setSelectedDroneId] = useState(null);
@@ -24,6 +24,15 @@ function AppV2() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [sensorFilters, setSensorFilters] = useState([]);
+
+  const canEditType = type => {
+    if (['drone','battery','accessory','accident','claim','service'].includes(type)) return Boolean(permissions.editDrones);
+    if (type === 'pilot') return Boolean(permissions.editPilots);
+    if (type === 'flight') return Boolean(permissions.editFlights);
+    if (type === 'task') return Boolean(permissions.editTasks);
+    return false;
+  };
+  const canDeleteType = type => Boolean(permissions.deleteRecords && canEditType(type));
 
   const save = next => {
     setData(next);
@@ -50,6 +59,7 @@ function AppV2() {
 
   const removeItem = editorItem => {
     const { type, item, droneId } = editorItem;
+    if (!canDeleteType(type)) return;
     const labels = { drone:'dron', pilot:'pilota', flight:'let', task:'úkol', battery:'baterii', accessory:'příslušenství', accident:'nehodu', claim:'reklamaci', service:'servisní záznam' };
     if (!window.confirm(`Opravdu smazat ${labels[type] || 'položku'}?`)) return;
     const next = structuredClone(data);
@@ -73,8 +83,9 @@ function AppV2() {
   };
 
   const saveEditor = payload => {
-    const next = structuredClone(data);
     const { type, item, droneId } = editor;
+    if (!canEditType(type)) return;
+    const next = structuredClone(data);
     if (type === 'drone') {
       if (item) Object.assign(next.drones.find(x => x.id === item.id), payload);
       else next.drones.push({ id:uid(), ...payload, sensors:payload.sensors || [], batteries:[], accessories:[], accidents:[], claims:[], services:[] });
@@ -129,7 +140,7 @@ function AppV2() {
   );
 
   const renderDrones = () => selectedDrone ? (
-    <DroneDetail drone={selectedDrone} back={() => setSelectedDroneId(null)} edit={() => setEditor({type:'drone',item:selectedDrone,droneId:selectedDrone.id})} remove={() => removeItem({type:'drone',item:selectedDrone})} openNested={(type,item=null)=>setEditor({type,item,droneId:selectedDrone.id})} />
+    <DroneDetail drone={selectedDrone} back={() => setSelectedDroneId(null)} edit={() => setEditor({type:'drone',item:selectedDrone,droneId:selectedDrone.id})} remove={() => removeItem({type:'drone',item:selectedDrone})} openNested={(type,item=null)=>setEditor({type,item,droneId:selectedDrone.id})} canEdit={canEditType('drone')} canDelete={canDeleteType('drone')} />
   ) : (
     <>
       <Title eyebrow="Evidence" title="Drony" badge={`${filteredDrones.length} položek`} />
@@ -147,7 +158,7 @@ function AppV2() {
       flights:['Letový deník',data.flights,'flight'],
       tasks:['Úkoly',data.tasks,'task']
     }[type];
-    return <><Title eyebrow="Evidence" title={config[0]} badge={config[1].length}/><div className="list">{config[1].map(item => <CollectionCard key={item.id} type={config[2]} item={item} data={data} onClick={()=>setEditor({type:config[2],item})} />)}{!config[1].length && <Empty text="Zatím žádné položky." />}</div></>;
+    return <><Title eyebrow="Evidence" title={config[0]} badge={config[1].length}/><div className="list">{config[1].map(item => <CollectionCard key={item.id} type={config[2]} item={item} data={data} editable={canEditType(config[2])} onClick={()=>setEditor({type:config[2],item})} />)}{!config[1].length && <Empty text="Zatím žádné položky." />}</div></>;
   };
 
   const content = view === 'dashboard' ? renderDashboard() : view === 'drones' ? renderDrones() : renderCollection(view);
@@ -156,10 +167,10 @@ function AppV2() {
   return <div className="app-shell">
     <header className="topbar"><div className="brand"><div className="brand-logo">DFM</div><div><h1>Drone Fleet Manager</h1><p>{new Intl.DateTimeFormat('cs-CZ',{weekday:'long',day:'numeric',month:'long'}).format(new Date())}</p></div></div><button className="icon-button" onClick={()=>setSettingsOpen(true)}>⚙️</button></header>
     <main className="content">{content}</main>
-    {!selectedDrone && view !== 'dashboard' && <button className="fab" onClick={()=>setEditor({type:createType,item:null})}>+</button>}
+    {!selectedDrone && view !== 'dashboard' && canEditType(createType) && <button className="fab" onClick={()=>setEditor({type:createType,item:null})}>+</button>}
     <nav className="bottom-nav">{[['dashboard','⌂','Přehled'],['drones','✈','Drony'],['pilots','👤','Piloti'],['flights','🛫','Lety'],['tasks','✓','Úkoly']].map(([id,icon,label])=><button key={id} className={view===id?'active':''} onClick={()=>nav(id)}><span>{icon}</span><small>{label}</small></button>)}</nav>
-    {editor && <Editor editor={editor} data={data} onClose={()=>setEditor(null)} onSave={saveEditor} onDelete={()=>removeItem(editor)} />}
-    {settingsOpen && <Settings data={data} close={()=>setSettingsOpen(false)} />}
+    {editor && <Editor editor={editor} data={data} readOnly={!canEditType(editor.type)} canDelete={canDeleteType(editor.type)} onClose={()=>setEditor(null)} onSave={saveEditor} onDelete={()=>removeItem(editor)} />}
+    {settingsOpen && <Settings data={data} canExport={Boolean(permissions.manageUsers)} close={()=>setSettingsOpen(false)} />}
   </div>;
 }
 
@@ -170,21 +181,21 @@ function Empty({text}) { return <div className="empty">{text}</div>; }
 function SensorBadges({sensors=[]}) { return <div className="sensor-tags">{sensors.map(s=><span key={s} className="sensor-tag">{s}</span>)}</div>; }
 function DroneCard({drone,onClick}) { return <article className="list-item" onClick={onClick}><div className="item-icon">✈</div><div className="item-main"><h3>{drone.name}</h3><p>{drone.model} · {(drone.batteries||[]).length} baterií · {(drone.accessories||[]).length} příslušenství</p><SensorBadges sensors={drone.sensors}/></div><span className={`badge ${drone.status==='Aktivní'?'green':''}`}>{drone.status||'Aktivní'}</span></article>; }
 
-function CollectionCard({type,item,data,onClick}) {
+function CollectionCard({type,item,data,onClick,editable}) {
   let icon='○',title='',sub='';
   if(type==='pilot'){icon='👤';title=item.name;sub=`${item.license||'Licence neuvedena'} · ${item.phone||'bez telefonu'}`;}
   if(type==='flight'){icon='🛫';title=item.location||'Let';sub=`${item.date||'Bez data'} · ${data.drones.find(d=>d.id===item.droneId)?.name||'Dron'} · ${data.pilots.find(p=>p.id===item.pilotId)?.name||'Pilot'}`;}
   if(type==='task'){icon=isDone(item)?'✓':'○';title=item.type==='Ostatní'?(item.custom||'Ostatní'):item.type;sub=`${item.dueDate||'Bez termínu'}${item.assignedTo?` · ${item.assignedTo}`:''}`;}
-  return <article className="list-item" onClick={onClick}><div className="item-icon">{icon}</div><div className="item-main"><h3>{title}</h3><p>{sub}</p></div><span className="mini-button">✎</span></article>;
+  return <article className="list-item" onClick={onClick}><div className="item-icon">{icon}</div><div className="item-main"><h3>{title}</h3><p>{sub}</p></div><span className="mini-button">{editable?'✎':'›'}</span></article>;
 }
 
-function DroneDetail({drone,back,edit,remove,openNested}) {
+function DroneDetail({drone,back,edit,remove,openNested,canEdit,canDelete}) {
   const [tab,setTab]=useState('equipment');
   const tabs=[['equipment','Sestava'],['accidents','Nehody'],['claims','Reklamace'],['services','Servis']];
-  return <><button className="secondary-button" onClick={back}>‹ Zpět na drony</button><section className="detail-hero"><div className="detail-row"><div className="detail-icon">✈</div><div><h2>{drone.name}</h2><p>{drone.model}</p></div><span className="badge green">{drone.status}</span></div><SensorBadges sensors={drone.sensors}/><div className="detail-actions"><button className="primary-button" onClick={edit}>Upravit dron</button><button className="danger-button" onClick={remove}>Smazat dron</button></div></section><div className="detail-grid"><Info label="Výrobce" value={drone.manufacturer||'Neuveden'}/><Info label="Výrobní číslo" value={drone.serial||'Neuvedeno'}/><Info label="DJI Care" value={drone.careUntil||'Neuvedeno'}/><Info label="Poznámka" value={drone.notes||'Bez poznámky'}/></div><div className="tabs">{tabs.map(([id,label])=><button key={id} className={tab===id?'active':''} onClick={()=>setTab(id)}>{label}</button>)}</div>{tab==='equipment'?<><NestedList title="Baterie" items={drone.batteries||[]} type="battery" add={()=>openNested('battery')} edit={i=>openNested('battery',i)}/><NestedList title="Příslušenství" items={drone.accessories||[]} type="accessory" add={()=>openNested('accessory')} edit={i=>openNested('accessory',i)}/></>:<NestedList title={{accidents:'Nehody',claims:'Reklamace',services:'Servis'}[tab]} items={drone[tab]||[]} type={tab.slice(0,-1)} add={()=>openNested(tab.slice(0,-1))} edit={i=>openNested(tab.slice(0,-1),i)}/>}</>;
+  return <><button className="secondary-button" onClick={back}>‹ Zpět na drony</button><section className="detail-hero"><div className="detail-row"><div className="detail-icon">✈</div><div><h2>{drone.name}</h2><p>{drone.model}</p></div><span className="badge green">{drone.status}</span></div><SensorBadges sensors={drone.sensors}/>{(canEdit||canDelete)&&<div className="detail-actions">{canEdit&&<button className="primary-button" onClick={edit}>Upravit dron</button>}{canDelete&&<button className="danger-button" onClick={remove}>Smazat dron</button>}</div>}</section><div className="detail-grid"><Info label="Výrobce" value={drone.manufacturer||'Neuveden'}/><Info label="Výrobní číslo" value={drone.serial||'Neuvedeno'}/><Info label="DJI Care" value={drone.careUntil||'Neuvedeno'}/><Info label="Poznámka" value={drone.notes||'Bez poznámky'}/></div><div className="tabs">{tabs.map(([id,label])=><button key={id} className={tab===id?'active':''} onClick={()=>setTab(id)}>{label}</button>)}</div>{tab==='equipment'?<><NestedList title="Baterie" items={drone.batteries||[]} type="battery" canEdit={canEdit} add={()=>openNested('battery')} edit={i=>openNested('battery',i)}/><NestedList title="Příslušenství" items={drone.accessories||[]} type="accessory" canEdit={canEdit} add={()=>openNested('accessory')} edit={i=>openNested('accessory',i)}/></>:<NestedList title={{accidents:'Nehody',claims:'Reklamace',services:'Servis'}[tab]} items={drone[tab]||[]} type={tab.slice(0,-1)} canEdit={canEdit} add={()=>openNested(tab.slice(0,-1))} edit={i=>openNested(tab.slice(0,-1),i)}/>}</>;
 }
 function Info({label,value}) { return <article className="info-card"><span>{label}</span><strong>{value}</strong></article>; }
-function NestedList({title,items,type,add,edit}) { return <><Title eyebrow="Evidence dronu" title={`${title} · ${items.length}`}/><button className="secondary-button full" onClick={add}>+ Přidat</button><div className="list">{items.map(i=><article key={i.id} className="list-item" onClick={()=>edit(i)}><div className="item-icon">{type==='battery'?'▣':type==='accessory'?'🧰':'•'}</div><div className="item-main"><h3>{i.number||i.name||i.title||'Položka'}</h3><p>{i.cycles!==undefined?`${i.cycles||0} cyklů`:i.date||i.category||'Bez detailu'}</p></div><span className="mini-button">✎</span></article>)}{!items.length&&<Empty text="Zatím žádné záznamy."/>}</div></>; }
+function NestedList({title,items,type,add,edit,canEdit}) { return <><Title eyebrow="Evidence dronu" title={`${title} · ${items.length}`}/>{canEdit&&<button className="secondary-button full" onClick={add}>+ Přidat</button>}<div className="list">{items.map(i=><article key={i.id} className="list-item" onClick={()=>edit(i)}><div className="item-icon">{type==='battery'?'▣':type==='accessory'?'🧰':'•'}</div><div className="item-main"><h3>{i.number||i.name||i.title||'Položka'}</h3><p>{i.cycles!==undefined?`${i.cycles||0} cyklů`:i.date||i.category||'Bez detailu'}</p></div><span className="mini-button">{canEdit?'✎':'›'}</span></article>)}{!items.length&&<Empty text="Zatím žádné záznamy."/>}</div></>; }
 
 const schemas={
  drone:[['name','Název','text'],['model','Model','text'],['manufacturer','Výrobce','text'],['serial','Výrobní číslo','text'],['status','Stav','select',['Aktivní','Servis','Vyřazený']],['careUntil','DJI Care do','date'],['notes','Poznámka','textarea']],
@@ -198,12 +209,12 @@ const schemas={
  service:[['date','Datum','date'],['title','Název servisu','text'],['technician','Technik / servis','text'],['price','Cena','number'],['description','Popis','textarea']]
 };
 
-function Editor({editor,data,onClose,onSave,onDelete}) {
+function Editor({editor,data,onClose,onSave,onDelete,readOnly,canDelete}) {
   const [form,setForm]=useState(editor.item?{...editor.item}:editor.type==='drone'?{status:'Aktivní',sensors:[]}:{});
   const fields=schemas[editor.type]||[];
-  const update=(k,v)=>setForm(f=>({...f,[k]:v}));
-  const submit=e=>{e.preventDefault();const payload={...form};if(editor.type==='task')payload.done=payload.done===true||payload.done==='Ano';onSave(payload);};
-  return <div className="sheet-backdrop"><div className="sheet-panel"><div className="sheet-header"><div><p className="eyebrow">{editor.item?'Úprava položky':'Nová položka'}</p><h2>{editor.type}</h2></div><button className="icon-button" onClick={onClose}>×</button></div><form onSubmit={submit}><div className="form-fields">{fields.map(([name,label,type,options])=><Field key={name} name={name} label={label} type={type} options={options} value={form[name]} update={update} data={data}/>)}{editor.type==='drone'&&<fieldset className="field full sensor-picker"><legend>Senzory a technologie</legend><div className="sensor-picker-grid">{SENSORS.map(s=><label key={s} className={`sensor-choice ${(form.sensors||[]).includes(s)?'selected':''}`}><input type="checkbox" checked={(form.sensors||[]).includes(s)} onChange={()=>update('sensors',(form.sensors||[]).includes(s)?form.sensors.filter(x=>x!==s):[...(form.sensors||[]),s])}/><span>{s}</span></label>)}</div></fieldset>}</div><div className="sheet-actions">{editor.item&&<button type="button" className="danger-button" onClick={onDelete}>Smazat</button>}<button type="button" className="secondary-button" onClick={onClose}>Zrušit</button><button type="submit" className="primary-button">Uložit</button></div></form></div></div>;
+  const update=(k,v)=>{if(!readOnly)setForm(f=>({...f,[k]:v}));};
+  const submit=e=>{e.preventDefault();if(readOnly)return;const payload={...form};if(editor.type==='task')payload.done=payload.done===true||payload.done==='Ano';onSave(payload);};
+  return <div className="sheet-backdrop"><div className="sheet-panel"><div className="sheet-header"><div><p className="eyebrow">{readOnly?'Detail položky':editor.item?'Úprava položky':'Nová položka'}</p><h2>{editor.type}</h2></div><button className="icon-button" onClick={onClose}>×</button></div><form onSubmit={submit}><fieldset disabled={readOnly} style={{border:0,padding:0,margin:0}}><div className="form-fields">{fields.map(([name,label,type,options])=><Field key={name} name={name} label={label} type={type} options={options} value={form[name]} update={update} data={data}/>)}{editor.type==='drone'&&<fieldset className="field full sensor-picker"><legend>Senzory a technologie</legend><div className="sensor-picker-grid">{SENSORS.map(s=><label key={s} className={`sensor-choice ${(form.sensors||[]).includes(s)?'selected':''}`}><input type="checkbox" checked={(form.sensors||[]).includes(s)} onChange={()=>update('sensors',(form.sensors||[]).includes(s)?form.sensors.filter(x=>x!==s):[...(form.sensors||[]),s])}/><span>{s}</span></label>)}</div></fieldset>}</div></fieldset><div className="sheet-actions">{!readOnly&&editor.item&&canDelete&&<button type="button" className="danger-button" onClick={onDelete}>Smazat</button>}<button type="button" className="secondary-button" onClick={onClose}>{readOnly?'Zavřít':'Zrušit'}</button>{!readOnly&&<button type="submit" className="primary-button">Uložit</button>}</div></form></div></div>;
 }
 function Field({name,label,type,options,value,update,data}) {
   if(type==='textarea')return <label className="field full"><span>{label}</span><textarea name={name} value={value||''} onChange={e=>update(name,e.target.value)}/></label>;
@@ -213,9 +224,9 @@ function Field({name,label,type,options,value,update,data}) {
   return <label className="field"><span>{label}</span><input name={name} type={type} value={value||''} onChange={e=>update(name,e.target.value)}/></label>;
 }
 
-function Settings({data,close}) {
+function Settings({data,close,canExport}) {
   const exportData=()=>{const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='DFM-zaloha.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500);};
-  return <div className="settings-overlay" onClick={e=>e.target===e.currentTarget&&close()}><section className="settings-panel"><header><h2>Nastavení</h2><button className="settings-close" onClick={close}>×</button></header><button className="settings-option" onClick={exportData}>Exportovat zálohu</button><div className="about-box"><p className="eyebrow">O aplikaci</p><h3>Drone Fleet Manager</h3><p>Verze {VERSION}<br/>React PWA · DroneTech</p></div></section></div>;
+  return <div className="settings-overlay" onClick={e=>e.target===e.currentTarget&&close()}><section className="settings-panel"><header><h2>Nastavení</h2><button className="settings-close" onClick={close}>×</button></header>{canExport&&<button className="settings-option" onClick={exportData}>Exportovat zálohu</button>}<div className="about-box"><p className="eyebrow">O aplikaci</p><h3>Drone Fleet Manager</h3><p>Verze {VERSION}<br/>React PWA · DroneTech</p></div></section></div>;
 }
 
 const nestedKey=type=>type==='battery'?'batteries':type==='accessory'?'accessories':`${type}s`;
