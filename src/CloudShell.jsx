@@ -1,161 +1,110 @@
-import React, { useEffect, useRef, useState } from 'react';
-import AppV2 from './AppV2';
-import './cloud-shell.css';
+import React,{useEffect,useMemo,useRef,useState}from'react';
+import{BrowserQRCodeReader}from'@zxing/browser';
+import{BarcodeFormat,EncodeHintType,QRCodeWriter}from'@zxing/library';
+import AppV2 from'./AppV2';
+import'./cloud-shell.css';
 
-const STORAGE_KEY='dfm_react_pwa_v1';
-const SESSION_KEY='dfm_auth_session';
-const CACHED_USER_KEY='dfm_cached_user';
-const OFFLINE_DIRTY_KEY='dfm_offline_changes_pending';
+const STORAGE_KEY='dfm_react_pwa_v1',SESSION_KEY='dfm_auth_session',PENDING_KEY='dfm_pending_sync';
 const API='https://dfm-cloud-api.bednarik.workers.dev';
 const EMPTY={drones:[],pilots:[],flights:[],tasks:[]};
-const hasRecords=d=>(d?.drones?.length||0)+(d?.pilots?.length||0)+(d?.flights?.length||0)+(d?.tasks?.length||0)>0;
 const roleLabel=r=>({admin:'Administrátor',pilot:'Pilot',technician:'Technik',user:'Uživatel'}[r]||'Uživatel');
-const readJson=(key,fallback)=>{try{return JSON.parse(localStorage.getItem(key)||'null')||fallback;}catch{return fallback;}};
+const qrPayload=(email,code)=>JSON.stringify({type:'dfm-login',server:API,email,code});
+function qrSvg(text,size=240){
+ try{
+  const hints=new Map();hints.set(EncodeHintType.MARGIN,1);
+  const matrix=new QRCodeWriter().encode(text,BarcodeFormat.QR_CODE,size,size,hints);
+  let path='';for(let y=0;y<matrix.getHeight();y++)for(let x=0;x<matrix.getWidth();x++)if(matrix.get(x,y))path+=`M${x} ${y}h1v1h-1z`;
+  return`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${matrix.getWidth()} ${matrix.getHeight()}" shape-rendering="crispEdges"><rect width="100%" height="100%" fill="white"/><path d="${path}" fill="black"/></svg>`;
+ }catch{return'';}
+}
 
 export default function CloudShell(){
- const [token,setToken]=useState(()=>localStorage.getItem(SESSION_KEY)||'');
- const [auth,setAuth]=useState('checking'),[initialized,setInitialized]=useState(true),[mode,setMode]=useState('login');
- const [user,setUser]=useState(()=>readJson(CACHED_USER_KEY,null)),[email,setEmail]=useState(''),[name,setName]=useState('');
- const [password,setPassword]=useState(''),[password2,setPassword2]=useState(''),[code,setCode]=useState('');
- const [busy,setBusy]=useState(false),[error,setError]=useState('');
- const [profileOpen,setProfileOpen]=useState(false),[usersOpen,setUsersOpen]=useState(false);
- const [users,setUsers]=useState([]),[invite,setInvite]=useState({email:'',role:'user'}),[createdCode,setCreatedCode]=useState(null);
- const [adminError,setAdminError]=useState(''),[newPassword,setNewPassword]=useState('');
- const [status,setStatus]=useState(()=>localStorage.getItem(OFFLINE_DIRTY_KEY)==='1'?'Offline · čeká na synchronizaci':'Připojuji…');
- const [chatOpen,setChatOpen]=useState(false),[messages,setMessages]=useState([]),[message,setMessage]=useState('');
- const lastRemote=useRef(''),syncing=useRef(false),saveTimer=useRef(null),storageOriginal=useRef(null);
+ const[token,setToken]=useState(()=>localStorage.getItem(SESSION_KEY)||'');
+ const[auth,setAuth]=useState('checking'),[initialized,setInitialized]=useState(true),[user,setUser]=useState(null);
+ const[email,setEmail]=useState(''),[name,setName]=useState(''),[code,setCode]=useState('');
+ const[busy,setBusy]=useState(false),[error,setError]=useState(''),[status,setStatus]=useState('Připojuji…');
+ const[profileOpen,setProfileOpen]=useState(false),[usersOpen,setUsersOpen]=useState(false),[scannerOpen,setScannerOpen]=useState(false);
+ const[users,setUsers]=useState([]),[newUser,setNewUser]=useState({name:'',email:'',role:'user'}),[inviteCard,setInviteCard]=useState(null),[adminError,setAdminError]=useState('');
+ const[chatOpen,setChatOpen]=useState(false),[messages,setMessages]=useState([]),[message,setMessage]=useState('');
+ const lastRemote=useRef(''),syncing=useRef(false),saveTimer=useRef(null),videoRef=useRef(null),scannerRef=useRef(null);
+ const inviteQr=useMemo(()=>inviteCard?qrSvg(qrPayload(inviteCard.user.email,inviteCard.accessCode)): '',[inviteCard]);
 
- const request=async(path,options={},authRequired=true)=>{
-   const headers={'content-type':'application/json',...(authRequired&&token?{authorization:`Bearer ${token}`}:{})};
-   const response=await fetch(`${API}${path}`,{...options,headers:{...headers,...(options.headers||{})}});
-   let payload={};try{payload=await response.json();}catch{}
-   if(!response.ok){const e=new Error(payload.error||`Cloud odpověděl ${response.status}`);e.status=response.status;throw e;}
-   return payload;
+ const request=async(path,options={},needsAuth=true)=>{
+  const headers={'content-type':'application/json',...(needsAuth&&token?{authorization:`Bearer ${token}`}:{})};
+  const response=await fetch(`${API}${path}`,{...options,headers:{...headers,...(options.headers||{})}});
+  let payload={};try{payload=await response.json();}catch{}
+  if(!response.ok){const e=new Error(payload.error||`Cloud odpověděl ${response.status}`);e.status=response.status;throw e;}return payload;
  };
- const cacheUser=value=>{setUser(value);if(value)localStorage.setItem(CACHED_USER_KEY,JSON.stringify(value));};
- const applySession=result=>{localStorage.setItem(SESSION_KEY,result.token);setToken(result.token);cacheUser(result.user);setAuth('ready');setStatus('Online');setTimeout(()=>location.reload(),80);};
- const clearSession=()=>{localStorage.removeItem(SESSION_KEY);localStorage.removeItem(CACHED_USER_KEY);setToken('');setUser(null);setAuth('login');setPassword('');setCode('');};
- const markPending=()=>{localStorage.setItem(OFFLINE_DIRTY_KEY,'1');setStatus('Offline · čeká na synchronizaci');};
- const clearPending=()=>localStorage.removeItem(OFFLINE_DIRTY_KEY);
- const pendingChanges=()=>localStorage.getItem(OFFLINE_DIRTY_KEY)==='1';
+ const applySession=r=>{localStorage.setItem(SESSION_KEY,r.token);setToken(r.token);setUser(r.user);setAuth('ready');setStatus('Online');setTimeout(()=>location.reload(),80);};
+ const clearSession=()=>{localStorage.removeItem(SESSION_KEY);setToken('');setUser(null);setAuth('login');setCode('');};
 
  useEffect(()=>{(async()=>{try{
-   const health=await request('/health',{},false);setInitialized(Boolean(health.initialized));setMode(health.initialized?'login':'bootstrap');
-   if(!token){setAuth('login');return;}
-   const result=await request('/auth/me');cacheUser(result.user);setAuth('ready');setStatus(pendingChanges()?'Synchronizuji…':'Online');
- }catch(e){
-   if(e.status===401)clearSession();
-   else if(token&&user){setAuth('ready');setStatus(pendingChanges()?'Offline · čeká na synchronizaci':'Offline režim');}
-   else{setAuth('offline');setStatus('Cloud nedostupný');}
- }})();},[]);
+  const h=await request('/health',{},false);setInitialized(Boolean(h.initialized));
+  if(!token){setAuth('login');return;}
+  try{const r=await request('/auth/me');setUser(r.user);setAuth('ready');setStatus(navigator.onLine?'Online':'Offline');}
+  catch(e){if(!navigator.onLine){setAuth('ready');setStatus('Offline');}else throw e;}
+ }catch(e){if(e.status===401)clearSession();else if(token){setAuth('ready');setStatus('Offline');}else setAuth('offline');}})();},[]);
 
- const submitAuth=async e=>{e.preventDefault();setBusy(true);setError('');
-   try{
-     if((mode==='register'||mode==='bootstrap'||mode==='reset')&&password!==password2)throw new Error('Hesla se neshodují.');
-     let path='/auth/login',body={email,password};
-     if(mode==='bootstrap'){path='/auth/bootstrap';body={email,name,code,password};}
-     if(mode==='register'){path='/auth/register';body={email,name,code,password};}
-     if(mode==='reset'){path='/auth/reset';body={email,code,password};}
-     const result=await request(path,{method:'POST',body:JSON.stringify(body)},false);
-     if(mode==='reset'){setMode('login');setPassword('');setPassword2('');setCode('');setError('Heslo bylo změněno. Nyní se přihlaste.');}
-     else applySession(result);
-   }catch(e){setError(e.message);}finally{setBusy(false);}
- };
+ const login=async e=>{e.preventDefault();setBusy(true);setError('');try{
+  const path=initialized?'/auth/code-login':'/auth/bootstrap';
+  const body=initialized?{email,code}:{email,name,code};
+  const r=await request(path,{method:'POST',body:JSON.stringify(body)},false);applySession(r);
+ }catch(e){setError(e.message);}finally{setBusy(false);}};
  const logout=async()=>{try{await request('/auth/logout',{method:'POST'});}catch{}clearSession();};
 
- const pushState=async data=>{
-   if(!token||syncing.current)return false;
-   try{
-     setStatus('Synchronizuji…');
-     await request('/state',{method:'PUT',body:JSON.stringify({data})});
-     lastRemote.current=JSON.stringify(data||EMPTY);clearPending();setStatus('Online');return true;
-   }catch(e){
-     if(e.status===401)clearSession();else markPending();
-     return false;
-   }
- };
-
- const synchronize=async({allowReload=true}={})=>{
-   if(!token||syncing.current)return;
-   try{
-     const local=readJson(STORAGE_KEY,EMPTY);
-     if(pendingChanges()){
-       const uploaded=await pushState(local);
-       if(!uploaded)return;
-     }
-     const r=await request('/state');
-     const remote=r.data||EMPTY;
-     const remoteText=JSON.stringify(remote),localText=JSON.stringify(readJson(STORAGE_KEY,EMPTY));
-     if(!hasRecords(remote)&&hasRecords(readJson(STORAGE_KEY,EMPTY)))await pushState(readJson(STORAGE_KEY,EMPTY));
-     else if(remoteText!==localText&&!pendingChanges()){
-       syncing.current=true;
-       (storageOriginal.current||Storage.prototype.setItem).call(localStorage,STORAGE_KEY,remoteText);
-       syncing.current=false;
-       lastRemote.current=remoteText;
-       if(allowReload)location.reload();
-     }else lastRemote.current=remoteText;
-     setStatus('Online');
-   }catch(e){if(e.status===401)clearSession();else setStatus(pendingChanges()?'Offline · čeká na synchronizaci':'Offline režim');}
- };
-
+ const pushState=async data=>{if(!token||syncing.current)return;try{
+  setStatus('Synchronizuji…');await request('/state',{method:'PUT',body:JSON.stringify({data})});
+  lastRemote.current=JSON.stringify(data||EMPTY);localStorage.removeItem(PENDING_KEY);setStatus('Online');
+ }catch(e){if(e.status===401&&navigator.onLine)clearSession();else{localStorage.setItem(PENDING_KEY,'1');setStatus('Offline · čeká na synchronizaci');}}};
+ const syncNow=async()=>{if(!navigator.onLine||!token)return;const local=JSON.parse(localStorage.getItem(STORAGE_KEY)||'null')||EMPTY;await pushState(local);};
  useEffect(()=>{if(auth!=='ready'||!token)return;
-   synchronize();
-   const original=Storage.prototype.setItem;storageOriginal.current=original;
-   Storage.prototype.setItem=function(k,v){
-     original.call(this,k,v);
-     if(this===localStorage&&k===STORAGE_KEY&&!syncing.current){
-       markPending();clearTimeout(saveTimer.current);
-       saveTimer.current=setTimeout(()=>{try{pushState(JSON.parse(v));}catch{}},700);
-     }
-   };
-   const poll=setInterval(()=>{if(!document.hidden&&!syncing.current)synchronize();},8000);
-   const online=()=>synchronize();
-   const offline=()=>setStatus(pendingChanges()?'Offline · čeká na synchronizaci':'Offline režim');
-   window.addEventListener('online',online);window.addEventListener('offline',offline);
-   return()=>{Storage.prototype.setItem=original;storageOriginal.current=null;clearInterval(poll);clearTimeout(saveTimer.current);window.removeEventListener('online',online);window.removeEventListener('offline',offline);};
+  const original=Storage.prototype.setItem;
+  const initial=async()=>{if(!navigator.onLine){setStatus(localStorage.getItem(PENDING_KEY)?'Offline · čeká na synchronizaci':'Offline');return;}try{
+   if(localStorage.getItem(PENDING_KEY)){await syncNow();return;}
+   const r=await request('/state'),remote=r.data||EMPTY,local=JSON.parse(localStorage.getItem(STORAGE_KEY)||'null')||EMPTY;
+   if(JSON.stringify(remote)!==JSON.stringify(local)){syncing.current=true;original.call(localStorage,STORAGE_KEY,JSON.stringify(remote));syncing.current=false;location.reload();}
+   lastRemote.current=JSON.stringify(remote);setStatus('Online');
+  }catch{setStatus('Offline');}};initial();
+  Storage.prototype.setItem=function(k,v){original.call(this,k,v);if(this===localStorage&&k===STORAGE_KEY&&!syncing.current){localStorage.setItem(PENDING_KEY,'1');setStatus(navigator.onLine?'Čeká na synchronizaci':'Offline · čeká na synchronizaci');clearTimeout(saveTimer.current);saveTimer.current=setTimeout(()=>{try{pushState(JSON.parse(v));}catch{}},500);}};
+  const online=()=>syncNow(),offline=()=>setStatus(localStorage.getItem(PENDING_KEY)?'Offline · čeká na synchronizaci':'Offline');
+  addEventListener('online',online);addEventListener('offline',offline);
+  return()=>{Storage.prototype.setItem=original;removeEventListener('online',online);removeEventListener('offline',offline);clearTimeout(saveTimer.current);};
  },[auth,token]);
 
- const loadChat=async()=>{try{setMessages((await request('/chat')).messages||[]);}catch(e){if(e.status===401)clearSession();}};
- useEffect(()=>{if(!chatOpen||!navigator.onLine)return;loadChat();const i=setInterval(loadChat,5000);return()=>clearInterval(i);},[chatOpen,token]);
- const sendMessage=async e=>{e.preventDefault();if(!message.trim())return;if(!navigator.onLine){setStatus('Chat vyžaduje připojení');return;}await request('/chat',{method:'POST',body:JSON.stringify({message:message.trim()})});setMessage('');loadChat();};
+ const openScanner=()=>setScannerOpen(true);
+ useEffect(()=>{if(!scannerOpen||!videoRef.current)return;const reader=new BrowserQRCodeReader();scannerRef.current=reader;
+  reader.decodeFromVideoDevice(undefined,videoRef.current,(result)=>{if(!result)return;try{const data=JSON.parse(result.getText());if(data.type==='dfm-login'&&data.email&&data.code){setEmail(data.email);setCode(data.code);setScannerOpen(false);reader.reset();}}catch{}}).catch(()=>setError('Kameru se nepodařilo spustit.'));
+  return()=>reader.reset();},[scannerOpen]);
 
  const loadUsers=async()=>{try{setUsers((await request('/admin/users')).users||[]);}catch(e){setAdminError(e.message);}};
- const openUsers=async()=>{setProfileOpen(false);setCreatedCode(null);setUsersOpen(true);await loadUsers();};
- const createInvite=async e=>{e.preventDefault();setAdminError('');try{const r=await request('/admin/invites',{method:'POST',body:JSON.stringify(invite)});setCreatedCode({...r,type:'invite'});setInvite({email:'',role:'user'});}catch(e){setAdminError(e.message);}};
+ const openUsers=async()=>{setProfileOpen(false);setInviteCard(null);setUsersOpen(true);await loadUsers();};
+ const createUser=async e=>{e.preventDefault();setAdminError('');try{const r=await request('/admin/users',{method:'POST',body:JSON.stringify(newUser)});setInviteCard(r);setNewUser({name:'',email:'',role:'user'});loadUsers();}catch(e){setAdminError(e.message);}};
+ const regenerate=async item=>{if(!confirm(`Vytvořit nový kód pro ${item.name}? Starý kód přestane fungovat.`))return;try{setInviteCard(await request(`/admin/users/${encodeURIComponent(item.id)}/regenerate-code`,{method:'POST'}));}catch(e){setAdminError(e.message);}};
  const updateUser=async item=>{try{await request(`/admin/users/${encodeURIComponent(item.id)}`,{method:'PUT',body:JSON.stringify({name:item.name,role:item.role,active:Boolean(item.active)})});loadUsers();}catch(e){setAdminError(e.message);}};
- const forceLogout=async item=>{if(!confirm(`Odhlásit uživatele ${item.name} ze všech zařízení?`))return;try{await request(`/admin/users/${encodeURIComponent(item.id)}/logout`,{method:'POST'});loadUsers();}catch(e){setAdminError(e.message);}};
- const resetCode=async item=>{try{const r=await request(`/admin/users/${encodeURIComponent(item.id)}/reset-code`,{method:'POST'});setCreatedCode({...r,type:'reset'});}catch(e){setAdminError(e.message);}};
- const setOwnPassword=async e=>{e.preventDefault();setAdminError('');try{await request('/auth/password',{method:'POST',body:JSON.stringify({password:newPassword})});setNewPassword('');const changed={...user,hasPassword:true};cacheUser(changed);}catch(e){setAdminError(e.message);}};
+ const forceLogout=async item=>{if(!confirm(`Odhlásit ${item.name} ze všech zařízení?`))return;try{await request(`/admin/users/${encodeURIComponent(item.id)}/logout`,{method:'POST'});loadUsers();}catch(e){setAdminError(e.message);}};
+ const shareInvite=async()=>{if(!inviteCard)return;const text=`DFM – přístup pro ${inviteCard.user.name}\nE-mail: ${inviteCard.user.email}\nKód: ${inviteCard.accessCode}\nOtevřít: https://lukas1212890.github.io/DFM-v2/`;if(navigator.share)await navigator.share({title:'Pozvánka do DFM',text});else{await navigator.clipboard.writeText(text);alert('Pozvánka byla zkopírována.');}};
+
+ const loadChat=async()=>{if(!navigator.onLine)return;try{setMessages((await request('/chat')).messages||[]);}catch{}};
+ useEffect(()=>{if(!chatOpen)return;loadChat();const i=setInterval(loadChat,5000);return()=>clearInterval(i);},[chatOpen,token]);
+ const sendMessage=async e=>{e.preventDefault();if(!navigator.onLine){alert('Chat vyžaduje internet.');return;}await request('/chat',{method:'POST',body:JSON.stringify({message:message.trim()})});setMessage('');loadChat();};
 
  if(auth==='checking')return <div className="auth-screen"><div className="auth-card auth-loading"><div className="auth-logo">DFM</div><p>Ověřuji přihlášení…</p></div></div>;
- if(auth==='offline')return <div className="auth-screen"><section className="auth-card"><div className="auth-logo">DFM</div><h1>První přihlášení vyžaduje internet</h1><p className="auth-help">Jakmile se na tomto zařízení jednou přihlásíte, DFM půjde používat i bez připojení.</p><button onClick={()=>location.reload()}>Zkusit znovu</button></section></div>;
- if(auth==='login')return <div className="auth-screen"><section className="auth-card">
-   <div className="auth-logo">DFM</div><p className="auth-kicker">Drone Fleet Manager</p>
-   <h1>{mode==='bootstrap'?'První spuštění':mode==='register'?'Vytvoření účtu':mode==='reset'?'Nové heslo':'Přihlášení'}</h1>
-   <form onSubmit={submitAuth}>
-    {(mode==='bootstrap'||mode==='register')&&<label>Jméno<input value={name} onChange={e=>setName(e.target.value)} required /></label>}
-    <label>Firemní e-mail<input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="jmeno@dronetech.cz" required /></label>
-    {(mode==='bootstrap'||mode==='register'||mode==='reset')&&<label>{mode==='reset'?'Resetovací kód':mode==='bootstrap'?'Startovací kód':'Pozvánkový kód'}<input className="pin-input" value={code} onChange={e=>setCode(e.target.value.toUpperCase())} required /></label>}
-    <label>Heslo<input type="password" value={password} onChange={e=>setPassword(e.target.value)} minLength="10" autoComplete={mode==='login'?'current-password':'new-password'} required /></label>
-    {(mode==='bootstrap'||mode==='register'||mode==='reset')&&<label>Heslo znovu<input type="password" value={password2} onChange={e=>setPassword2(e.target.value)} minLength="10" required /></label>}
-    {error&&<p className={error.startsWith('Heslo bylo')?'auth-help':'auth-error'}>{error}</p>}
-    <button disabled={busy}>{busy?'Pracuji…':mode==='login'?'Přihlásit se':mode==='reset'?'Nastavit nové heslo':'Vytvořit účet'}</button>
-   </form>
-   {initialized&&<div className="auth-links">{mode!=='login'&&<button className="auth-secondary" onClick={()=>{setMode('login');setError('');}}>Zpět na přihlášení</button>}{mode==='login'&&<><button className="auth-secondary" onClick={()=>{setMode('register');setError('');}}>Mám pozvánkový kód</button><button className="auth-secondary" onClick={()=>{setMode('reset');setError('');}}>Zapomenuté heslo</button></>}</div>}
- </section></div>;
+ if(auth==='offline')return <div className="auth-screen"><section className="auth-card"><div className="auth-logo">DFM</div><h1>První přihlášení vyžaduje internet</h1><button onClick={()=>location.reload()}>Zkusit znovu</button></section></div>;
+ if(auth==='login')return <div className="auth-screen"><section className="auth-card"><div className="auth-logo">DFM</div><p className="auth-kicker">Drone Fleet Manager</p><h1>{initialized?'Přihlášení':'První spuštění'}</h1><form onSubmit={login}>
+  {!initialized&&<label>Jméno<input value={name} onChange={e=>setName(e.target.value)} required/></label>}
+  <label>Firemní e-mail<input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="jmeno@dronetech.cz" required/></label>
+  <label>{initialized?'Přístupový kód':'Startovací kód'}<input className="pin-input" value={code} onChange={e=>setCode(e.target.value.toUpperCase())} placeholder="ABCD-EFGH" required/></label>
+  {error&&<p className="auth-error">{error}</p>}<button disabled={busy}>{busy?'Přihlašuji…':initialized?'Přihlásit se':'Vytvořit administrátora'}</button>
+ </form>{initialized&&<button className="scan-login" onClick={openScanner}>📷 Naskenovat QR kód</button>}</section>
+ {scannerOpen&&<div className="chat-overlay"><section className="scanner-panel"><header><h2>Naskenuj pozvánku</h2><button onClick={()=>setScannerOpen(false)}>×</button></header><video ref={videoRef} muted playsInline/><p>Namiř kameru na QR kód vytvořený administrátorem.</p></section></div>}</div>;
 
- return <>
-  <AppV2/>
-  <button className="cloud-status" onClick={()=>synchronize({allowReload:false})}>{status}</button>
-  <button className="user-chip" onClick={()=>setProfileOpen(v=>!v)}><span>{user?.name?.[0]||'U'}</span><div><strong>{user?.name}</strong><small>{roleLabel(user?.role)}</small></div></button>
-  <button className="chat-fab" onClick={()=>setChatOpen(true)}>💬</button>
-  {profileOpen&&<aside className="profile-menu"><strong>{user?.name}</strong><span>{user?.email}</span><em>{roleLabel(user?.role)}</em>{!user?.hasPassword&&<form onSubmit={setOwnPassword}><input type="password" value={newPassword} onChange={e=>setNewPassword(e.target.value)} minLength="10" placeholder="Nastavit heslo" required/><button>Nastavit heslo</button></form>}{user?.role==='admin'&&<button onClick={openUsers}>Správa uživatelů</button>}<button onClick={logout}>Odhlásit se</button></aside>}
-  {usersOpen&&<div className="chat-overlay"><section className="users-panel"><header><div><small>Administrace</small><h2>Uživatelé</h2></div><button onClick={()=>setUsersOpen(false)}>×</button></header><div className="users-content">
-   <form className="invite-form" onSubmit={createInvite}><h3>Nová pozvánka</h3><input type="email" value={invite.email} onChange={e=>setInvite({...invite,email:e.target.value})} placeholder="jmeno@dronetech.cz" required/><select value={invite.role} onChange={e=>setInvite({...invite,role:e.target.value})}><option value="user">Uživatel</option><option value="pilot">Pilot</option><option value="technician">Technik</option><option value="admin">Administrátor</option></select><button>Vytvořit kód</button></form>
-   {createdCode&&<div className="invite-result"><span>{createdCode.type==='reset'?'Reset hesla':'Pozvánka'} pro {createdCode.email}</span><strong>{createdCode.code}</strong><small>{createdCode.type==='reset'?'Platí 24 hodin.':'Platí 7 dní.'}</small></div>}
-   {adminError&&<p className="auth-error">{adminError}</p>}
-   <div className="users-list">{users.map(item=><article key={item.id}><input value={item.name} onChange={e=>setUsers(xs=>xs.map(x=>x.id===item.id?{...x,name:e.target.value}:x))}/><span>{item.email}</span><small>{Number(item.sessions||0)} zařízení · naposledy {item.last_seen?new Date(item.last_seen+'Z').toLocaleString('cs-CZ'):'nikdy'}</small><select value={item.role} onChange={e=>setUsers(xs=>xs.map(x=>x.id===item.id?{...x,role:e.target.value}:x))}><option value="user">Uživatel</option><option value="pilot">Pilot</option><option value="technician">Technik</option><option value="admin">Administrátor</option></select><label><input type="checkbox" checked={Boolean(item.active)} onChange={e=>setUsers(xs=>xs.map(x=>x.id===item.id?{...x,active:e.target.checked?1:0}:x))}/> Aktivní</label><div className="user-actions"><button onClick={()=>updateUser(item)}>Uložit</button><button onClick={()=>forceLogout(item)}>Odhlásit zařízení</button><button onClick={()=>resetCode(item)}>Reset hesla</button></div></article>)}</div>
-  </div></section></div>}
-  {chatOpen&&<div className="chat-overlay"><section className="chat-panel"><header><div><small>Společná místnost</small><h2>DFM Chat</h2></div><button onClick={()=>setChatOpen(false)}>×</button></header><div className="chat-messages">{!navigator.onLine&&<p className="chat-empty">Chat je dostupný po připojení k internetu.</p>}{messages.map(x=><article key={x.id}><strong>{x.author}</strong><p>{x.message}</p><time>{new Date(x.created_at+'Z').toLocaleString('cs-CZ')}</time></article>)}</div><form onSubmit={sendMessage}><textarea value={message} onChange={e=>setMessage(e.target.value)} required disabled={!navigator.onLine}/><button disabled={!navigator.onLine}>Odeslat</button></form></section></div>}
- </>;
+ return <><AppV2/><button className="cloud-status" onClick={syncNow}>{status}</button><button className="user-chip" onClick={()=>setProfileOpen(v=>!v)}><span>{user?.name?.[0]||'U'}</span><div><strong>{user?.name}</strong><small>{roleLabel(user?.role)}</small></div></button><button className="chat-fab" onClick={()=>setChatOpen(true)}>💬</button>
+ {profileOpen&&<aside className="profile-menu"><strong>{user?.name}</strong><span>{user?.email}</span><em>{roleLabel(user?.role)}</em>{user?.role==='admin'&&<button onClick={openUsers}>Správa uživatelů</button>}<button onClick={logout}>Odhlásit se</button></aside>}
+ {usersOpen&&<div className="chat-overlay"><section className="users-panel"><header><div><small>Administrace</small><h2>Uživatelé</h2></div><button onClick={()=>setUsersOpen(false)}>×</button></header><div className="users-content">
+  <form className="invite-form" onSubmit={createUser}><h3>Přidat uživatele</h3><input value={newUser.name} onChange={e=>setNewUser({...newUser,name:e.target.value})} placeholder="Jméno" required/><input type="email" value={newUser.email} onChange={e=>setNewUser({...newUser,email:e.target.value})} placeholder="jmeno@dronetech.cz" required/><select value={newUser.role} onChange={e=>setNewUser({...newUser,role:e.target.value})}><option value="user">Uživatel</option><option value="pilot">Pilot</option><option value="technician">Technik</option><option value="admin">Administrátor</option></select><button>Vytvořit přístup</button></form>
+  {inviteCard&&<div className="qr-invite"><h3>{inviteCard.user.name}</h3><span>{inviteCard.user.email}</span><div className="qr-image" dangerouslySetInnerHTML={{__html:inviteQr}}/><strong>{inviteCard.accessCode}</strong><div><button onClick={()=>navigator.clipboard.writeText(inviteCard.accessCode)}>Kopírovat kód</button><button onClick={shareInvite}>Sdílet pozvánku</button></div></div>}
+  {adminError&&<p className="auth-error">{adminError}</p>}
+  <div className="users-list">{users.map(item=><article key={item.id}><input value={item.name} onChange={e=>setUsers(xs=>xs.map(x=>x.id===item.id?{...x,name:e.target.value}:x))}/><span>{item.email}</span><small>{Number(item.sessions||0)} zařízení · {item.last_seen?new Date(item.last_seen+'Z').toLocaleString('cs-CZ'):'dosud nepřihlášen'}</small><select value={item.role} onChange={e=>setUsers(xs=>xs.map(x=>x.id===item.id?{...x,role:e.target.value}:x))}><option value="user">Uživatel</option><option value="pilot">Pilot</option><option value="technician">Technik</option><option value="admin">Administrátor</option></select><label><input type="checkbox" checked={Boolean(item.active)} onChange={e=>setUsers(xs=>xs.map(x=>x.id===item.id?{...x,active:e.target.checked?1:0}:x))}/> Aktivní</label><div className="user-actions"><button onClick={()=>updateUser(item)}>Uložit</button><button onClick={()=>regenerate(item)}>Nový kód + QR</button><button onClick={()=>forceLogout(item)}>Odhlásit zařízení</button></div></article>)}</div>
+ </div></section></div>}
+ {chatOpen&&<div className="chat-overlay"><section className="chat-panel"><header><div><small>Společná místnost</small><h2>DFM Chat</h2></div><button onClick={()=>setChatOpen(false)}>×</button></header><div className="chat-messages">{messages.map(x=><article key={x.id}><strong>{x.author}</strong><p>{x.message}</p><time>{new Date(x.created_at+'Z').toLocaleString('cs-CZ')}</time></article>)}</div><form onSubmit={sendMessage}><textarea value={message} onChange={e=>setMessage(e.target.value)} required/><button>Odeslat</button></form></section></div>}</>;
 }
