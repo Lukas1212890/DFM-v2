@@ -10,19 +10,27 @@ const EMPTY = { drones: [], pilots: [], flights: [], tasks: [] };
 
 const normalizeUrl = value => String(value || '').trim().replace(/\/+$/, '');
 const hasRecords = data => (data?.drones?.length || 0) + (data?.pilots?.length || 0) + (data?.flights?.length || 0) + (data?.tasks?.length || 0) > 0;
+const roleLabel = role => ({ admin: 'Administrátor', pilot: 'Pilot', technician: 'Technik', user: 'Uživatel' }[role] || 'Uživatel');
 
 export default function CloudShell() {
   const [apiUrl, setApiUrl] = useState(() => localStorage.getItem(API_URL_KEY) || DEFAULT_API_URL);
   const [sessionToken, setSessionToken] = useState(() => localStorage.getItem(SESSION_KEY) || '');
   const [authState, setAuthState] = useState('checking');
+  const [initialized, setInitialized] = useState(true);
   const [user, setUser] = useState(null);
   const [email, setEmail] = useState('');
-  const [pin, setPin] = useState('');
-  const [authStep, setAuthStep] = useState('email');
+  const [name, setName] = useState('');
+  const [accessCode, setAccessCode] = useState('');
   const [authBusy, setAuthBusy] = useState(false);
   const [authError, setAuthError] = useState('');
   const [setupOpen, setSetupOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [usersOpen, setUsersOpen] = useState(false);
+  const [users, setUsers] = useState([]);
+  const [invite, setInvite] = useState({ email: '', role: 'user' });
+  const [createdInvite, setCreatedInvite] = useState(null);
+  const [adminBusy, setAdminBusy] = useState(false);
+  const [adminError, setAdminError] = useState('');
   const [status, setStatus] = useState('Připojuji…');
   const [chatOpen, setChatOpen] = useState(false);
   const [messages, setMessages] = useState([]);
@@ -44,7 +52,7 @@ export default function CloudShell() {
       headers: useAuth ? headers(options.headers) : { 'content-type': 'application/json', ...(options.headers || {}) }
     });
     let payload = {};
-    try { payload = await response.json(); } catch { /* empty response */ }
+    try { payload = await response.json(); } catch { /* empty */ }
     if (!response.ok) {
       const error = new Error(payload.error || `Cloud odpověděl ${response.status}`);
       error.status = response.status;
@@ -58,16 +66,17 @@ export default function CloudShell() {
     setSessionToken('');
     setUser(null);
     setAuthState('login');
-    setAuthStep('email');
-    setPin('');
+    setAccessCode('');
   };
 
   const verifyExistingSession = async () => {
-    if (!sessionToken) {
-      setAuthState('login');
-      return;
-    }
     try {
+      const health = await request('/health', {}, false);
+      setInitialized(Boolean(health.initialized));
+      if (!sessionToken) {
+        setAuthState('login');
+        return;
+      }
       const result = await request('/auth/me');
       setUser(result.user);
       setAuthState('ready');
@@ -86,35 +95,21 @@ export default function CloudShell() {
     verifyExistingSession();
   }, []);
 
-  const requestPin = async event => {
+  const login = async event => {
     event.preventDefault();
     setAuthBusy(true);
     setAuthError('');
     try {
-      await request('/auth/request', { method: 'POST', body: JSON.stringify({ email }) }, false);
-      setAuthStep('pin');
-    } catch (error) {
-      setAuthError(error.message);
-    } finally {
-      setAuthBusy(false);
-    }
-  };
-
-  const verifyPin = async event => {
-    event.preventDefault();
-    setAuthBusy(true);
-    setAuthError('');
-    try {
-      const result = await request('/auth/verify', {
+      const result = await request('/auth/login', {
         method: 'POST',
-        body: JSON.stringify({ email, code: pin })
+        body: JSON.stringify({ email, name, code: accessCode })
       }, false);
       localStorage.setItem(SESSION_KEY, result.token);
       setSessionToken(result.token);
       setUser(result.user);
       setAuthState('ready');
       setStatus('Online');
-      setPin('');
+      setAccessCode('');
       setTimeout(() => window.location.reload(), 100);
     } catch (error) {
       setAuthError(error.message);
@@ -124,7 +119,7 @@ export default function CloudShell() {
   };
 
   const logout = async () => {
-    try { await request('/auth/logout', { method: 'POST' }); } catch { /* local logout still applies */ }
+    try { await request('/auth/logout', { method: 'POST' }); } catch { /* local logout */ }
     setProfileOpen(false);
     clearSession();
   };
@@ -138,7 +133,6 @@ export default function CloudShell() {
       lastRemote.current = serialized;
       setStatus('Online');
     } catch (error) {
-      console.error(error);
       if (error.status === 401) clearSession();
       else setStatus('Offline, změny zůstaly v telefonu');
     }
@@ -151,21 +145,17 @@ export default function CloudShell() {
       const result = await request('/state');
       const remote = result.data || EMPTY;
       const local = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null') || EMPTY;
-      if (!hasRecords(remote) && hasRecords(local)) {
-        await pushState(local);
-      } else if (JSON.stringify(remote) !== JSON.stringify(local)) {
+      if (!hasRecords(remote) && hasRecords(local)) await pushState(local);
+      else if (JSON.stringify(remote) !== JSON.stringify(local)) {
         syncing.current = true;
         localStorage.setItem(STORAGE_KEY, JSON.stringify(remote));
         lastRemote.current = JSON.stringify(remote);
         syncing.current = false;
         window.location.reload();
         return;
-      } else {
-        lastRemote.current = JSON.stringify(remote);
-      }
+      } else lastRemote.current = JSON.stringify(remote);
       setStatus('Online');
     } catch (error) {
-      console.error(error);
       if (error.status === 401) clearSession();
       else setStatus('Cloud nedostupný');
     }
@@ -174,18 +164,16 @@ export default function CloudShell() {
   useEffect(() => {
     if (authState !== 'ready' || !sessionToken) return undefined;
     initialSync();
-
     const original = Storage.prototype.setItem;
     Storage.prototype.setItem = function patchedSetItem(key, value) {
       original.call(this, key, value);
       if (this === localStorage && key === STORAGE_KEY && !syncing.current) {
         clearTimeout(saveTimer.current);
         saveTimer.current = setTimeout(() => {
-          try { pushState(JSON.parse(value)); } catch { /* ignore invalid state */ }
+          try { pushState(JSON.parse(value)); } catch { /* invalid state */ }
         }, 500);
       }
     };
-
     const poll = setInterval(async () => {
       if (document.hidden || syncing.current) return;
       try {
@@ -205,7 +193,6 @@ export default function CloudShell() {
         else setStatus('Offline, změny zůstaly v telefonu');
       }
     }, 8000);
-
     return () => {
       Storage.prototype.setItem = original;
       clearInterval(poll);
@@ -225,13 +212,8 @@ export default function CloudShell() {
 
   const loadChat = async () => {
     if (!sessionToken) return;
-    try {
-      const result = await request('/chat');
-      setMessages(result.messages || []);
-    } catch (error) {
-      if (error.status === 401) clearSession();
-      else console.error(error);
-    }
+    try { setMessages((await request('/chat')).messages || []); }
+    catch (error) { if (error.status === 401) clearSession(); }
   };
 
   useEffect(() => {
@@ -250,55 +232,83 @@ export default function CloudShell() {
       await request('/chat', { method: 'POST', body: JSON.stringify({ message: text }) });
       setMessage('');
       await loadChat();
-    } finally {
-      setChatBusy(false);
-    }
+    } finally { setChatBusy(false); }
   };
 
-  if (authState === 'checking') {
-    return <div className="auth-screen"><div className="auth-card auth-loading"><div className="auth-logo">DFM</div><p>Ověřuji přihlášení…</p></div></div>;
-  }
+  const loadUsers = async () => {
+    setAdminError('');
+    try { setUsers((await request('/admin/users')).users || []); }
+    catch (error) { setAdminError(error.message); }
+  };
 
-  if (authState === 'login') {
-    return <div className="auth-screen"><section className="auth-card">
-      <div className="auth-logo">DFM</div>
-      <p className="auth-kicker">Drone Fleet Manager</p>
-      <h1>{authStep === 'email' ? 'Přihlášení' : 'Zadejte PIN'}</h1>
-      {authStep === 'email' ? <form onSubmit={requestPin}>
-        <label>Firemní e-mail<input type="email" value={email} onChange={event => setEmail(event.target.value)} placeholder="jmeno@dronetech.cz" autoComplete="email" required /></label>
-        {authError && <p className="auth-error">{authError}</p>}
-        <button disabled={authBusy}>{authBusy ? 'Odesílám…' : 'Poslat přihlašovací PIN'}</button>
-      </form> : <form onSubmit={verifyPin}>
-        <p className="auth-help">Šestimístný kód jsme poslali na <strong>{email}</strong>. Platí 10 minut.</p>
-        <label>PIN<input className="pin-input" inputMode="numeric" pattern="[0-9]{6}" maxLength="6" value={pin} onChange={event => setPin(event.target.value.replace(/\D/g, ''))} placeholder="000000" autoComplete="one-time-code" required /></label>
-        {authError && <p className="auth-error">{authError}</p>}
-        <button disabled={authBusy || pin.length !== 6}>{authBusy ? 'Ověřuji…' : 'Přihlásit se'}</button>
-        <button className="auth-secondary" type="button" onClick={() => { setAuthStep('email'); setPin(''); setAuthError(''); }}>Změnit e-mail</button>
-      </form>}
-      <button className="auth-settings" onClick={() => setSetupOpen(true)}>Nastavení cloudu</button>
-    </section>
-    {setupOpen && <div className="cloud-overlay"><form className="cloud-panel" onSubmit={saveSetup}><h2>DFM Cloud</h2><label>Adresa API<input type="url" value={apiUrl} onChange={event => setApiUrl(event.target.value)} required /></label><div><button type="button" onClick={() => setSetupOpen(false)}>Zrušit</button><button type="submit">Uložit</button></div></form></div>}
-    </div>;
-  }
+  const openUsers = async () => {
+    setProfileOpen(false);
+    setCreatedInvite(null);
+    setUsersOpen(true);
+    await loadUsers();
+  };
 
-  if (authState === 'offline') {
-    return <div className="auth-screen"><section className="auth-card"><div className="auth-logo">DFM</div><h1>Cloud není dostupný</h1><p className="auth-help">Zkontrolujte internetové připojení nebo adresu API.</p><button onClick={() => window.location.reload()}>Zkusit znovu</button><button className="auth-secondary" onClick={() => setSetupOpen(true)}>Nastavení cloudu</button></section>{setupOpen && <div className="cloud-overlay"><form className="cloud-panel" onSubmit={saveSetup}><h2>DFM Cloud</h2><label>Adresa API<input type="url" value={apiUrl} onChange={event => setApiUrl(event.target.value)} required /></label><div><button type="button" onClick={() => setSetupOpen(false)}>Zrušit</button><button type="submit">Uložit</button></div></form></div>}</div>;
-  }
+  const createInvite = async event => {
+    event.preventDefault();
+    setAdminBusy(true);
+    setAdminError('');
+    setCreatedInvite(null);
+    try {
+      const result = await request('/admin/invites', { method: 'POST', body: JSON.stringify(invite) });
+      setCreatedInvite(result);
+      setInvite({ email: '', role: 'user' });
+    } catch (error) { setAdminError(error.message); }
+    finally { setAdminBusy(false); }
+  };
+
+  const updateUser = async item => {
+    setAdminBusy(true);
+    setAdminError('');
+    try {
+      await request(`/admin/users/${encodeURIComponent(item.id)}`, {
+        method: 'PUT',
+        body: JSON.stringify({ name: item.name, role: item.role, active: Boolean(item.active) })
+      });
+      await loadUsers();
+    } catch (error) { setAdminError(error.message); }
+    finally { setAdminBusy(false); }
+  };
+
+  if (authState === 'checking') return <div className="auth-screen"><div className="auth-card auth-loading"><div className="auth-logo">DFM</div><p>Ověřuji přihlášení…</p></div></div>;
+
+  if (authState === 'login') return <div className="auth-screen"><section className="auth-card">
+    <div className="auth-logo">DFM</div><p className="auth-kicker">Drone Fleet Manager</p>
+    <h1>{initialized ? 'Přihlášení' : 'První spuštění'}</h1>
+    <p className="auth-help">{initialized ? 'Zadejte firemní e-mail a pozvánkový kód.' : 'Vytvořte první administrátorský účet pomocí startovacího kódu.'}</p>
+    <form onSubmit={login}>
+      <label>Jméno<input value={name} onChange={event => setName(event.target.value)} placeholder="Lukáš Bednařík" autoComplete="name" /></label>
+      <label>Firemní e-mail<input type="email" value={email} onChange={event => setEmail(event.target.value)} placeholder="jmeno@dronetech.cz" autoComplete="email" required /></label>
+      <label>{initialized ? 'Pozvánkový kód' : 'Startovací kód'}<input className="pin-input" value={accessCode} onChange={event => setAccessCode(event.target.value.toUpperCase())} placeholder="XXXXXXXXXX" autoCapitalize="characters" required /></label>
+      {authError && <p className="auth-error">{authError}</p>}
+      <button disabled={authBusy}>{authBusy ? 'Přihlašuji…' : initialized ? 'Přihlásit se' : 'Vytvořit administrátora'}</button>
+    </form>
+    <button className="auth-settings" onClick={() => setSetupOpen(true)}>Nastavení cloudu</button>
+  </section>{setupOpen && <div className="cloud-overlay"><form className="cloud-panel" onSubmit={saveSetup}><h2>DFM Cloud</h2><label>Adresa API<input type="url" value={apiUrl} onChange={event => setApiUrl(event.target.value)} required /></label><div><button type="button" onClick={() => setSetupOpen(false)}>Zrušit</button><button type="submit">Uložit</button></div></form></div>}</div>;
+
+  if (authState === 'offline') return <div className="auth-screen"><section className="auth-card"><div className="auth-logo">DFM</div><h1>Cloud není dostupný</h1><p className="auth-help">Zkontrolujte internetové připojení nebo adresu API.</p><button onClick={() => window.location.reload()}>Zkusit znovu</button><button className="auth-secondary" onClick={() => setSetupOpen(true)}>Nastavení cloudu</button></section>{setupOpen && <div className="cloud-overlay"><form className="cloud-panel" onSubmit={saveSetup}><h2>DFM Cloud</h2><label>Adresa API<input type="url" value={apiUrl} onChange={event => setApiUrl(event.target.value)} required /></label><div><button type="button" onClick={() => setSetupOpen(false)}>Zrušit</button><button type="submit">Uložit</button></div></form></div>}</div>;
 
   return <>
     <AppV2 />
     <button className="cloud-status" onClick={() => setSetupOpen(true)}>{status}</button>
-    <button className="user-chip" onClick={() => setProfileOpen(value => !value)}><span>{user?.name?.charAt(0) || 'U'}</span><div><strong>{user?.name}</strong><small>{user?.role === 'admin' ? 'Administrátor' : 'Uživatel'}</small></div></button>
+    <button className="user-chip" onClick={() => setProfileOpen(value => !value)}><span>{user?.name?.charAt(0) || 'U'}</span><div><strong>{user?.name}</strong><small>{roleLabel(user?.role)}</small></div></button>
     <button className="chat-fab" onClick={() => setChatOpen(true)} aria-label="Otevřít DFM chat">💬</button>
 
-    {profileOpen && <aside className="profile-menu"><strong>{user?.name}</strong><span>{user?.email}</span><em>{user?.role === 'admin' ? 'Administrátor' : 'Uživatel'}</em><button onClick={logout}>Odhlásit se</button></aside>}
+    {profileOpen && <aside className="profile-menu"><strong>{user?.name}</strong><span>{user?.email}</span><em>{roleLabel(user?.role)}</em>{user?.role === 'admin' && <button onClick={openUsers}>Správa uživatelů</button>}<button onClick={logout}>Odhlásit se</button></aside>}
+
+    {usersOpen && <div className="chat-overlay"><section className="users-panel"><header><div><small>Administrace</small><h2>Uživatelé</h2></div><button onClick={() => setUsersOpen(false)}>×</button></header><div className="users-content">
+      <form className="invite-form" onSubmit={createInvite}><h3>Nová pozvánka</h3><input type="email" value={invite.email} onChange={event => setInvite({ ...invite, email: event.target.value })} placeholder="jmeno@dronetech.cz" required /><select value={invite.role} onChange={event => setInvite({ ...invite, role: event.target.value })}><option value="user">Uživatel</option><option value="pilot">Pilot</option><option value="technician">Technik</option><option value="admin">Administrátor</option></select><button disabled={adminBusy}>Vytvořit kód</button></form>
+      {createdInvite && <div className="invite-result"><span>Kód pro {createdInvite.email}</span><strong>{createdInvite.code}</strong><small>Platí 7 dní. Pošli ho uživateli bezpečnou cestou.</small></div>}
+      {adminError && <p className="auth-error">{adminError}</p>}
+      <div className="users-list">{users.map(item => <article key={item.id}><input value={item.name} onChange={event => setUsers(list => list.map(row => row.id === item.id ? { ...row, name: event.target.value } : row))} /><span>{item.email}</span><select value={item.role} onChange={event => setUsers(list => list.map(row => row.id === item.id ? { ...row, role: event.target.value } : row))}><option value="user">Uživatel</option><option value="pilot">Pilot</option><option value="technician">Technik</option><option value="admin">Administrátor</option></select><label><input type="checkbox" checked={Boolean(item.active)} onChange={event => setUsers(list => list.map(row => row.id === item.id ? { ...row, active: event.target.checked ? 1 : 0 } : row))} /> Aktivní</label><button onClick={() => updateUser(item)} disabled={adminBusy}>Uložit</button></article>)}</div>
+    </div></section></div>}
 
     {setupOpen && <div className="cloud-overlay"><form className="cloud-panel" onSubmit={saveSetup}><h2>DFM Cloud</h2><label>Adresa API<input type="url" value={apiUrl} onChange={event => setApiUrl(event.target.value)} required /></label><div><button type="button" onClick={() => setSetupOpen(false)}>Zrušit</button><button type="submit">Uložit</button></div></form></div>}
 
-    {chatOpen && <div className="chat-overlay"><section className="chat-panel">
-      <header><div><small>Společná místnost</small><h2>DFM Chat</h2></div><button onClick={() => setChatOpen(false)}>×</button></header>
-      <div className="chat-messages">{messages.map(item => <article key={item.id}><strong>{item.author}</strong><p>{item.message}</p><time>{new Date(`${item.created_at}Z`).toLocaleString('cs-CZ')}</time></article>)}{!messages.length && <p className="chat-empty">Zatím tu nikdo nic nenapsal.</p>}</div>
-      <form onSubmit={sendMessage}><textarea value={message} onChange={event => setMessage(event.target.value)} placeholder={`Napiš zprávu jako ${user?.name}…`} required /><button disabled={chatBusy}>{chatBusy ? 'Odesílám…' : 'Odeslat'}</button></form>
-    </section></div>}
+    {chatOpen && <div className="chat-overlay"><section className="chat-panel"><header><div><small>Společná místnost</small><h2>DFM Chat</h2></div><button onClick={() => setChatOpen(false)}>×</button></header><div className="chat-messages">{messages.map(item => <article key={item.id}><strong>{item.author}</strong><p>{item.message}</p><time>{new Date(`${item.created_at}Z`).toLocaleString('cs-CZ')}</time></article>)}{!messages.length && <p className="chat-empty">Zatím tu nikdo nic nenapsal.</p>}</div><form onSubmit={sendMessage}><textarea value={message} onChange={event => setMessage(event.target.value)} placeholder={`Napiš zprávu jako ${user?.name}…`} required /><button disabled={chatBusy}>{chatBusy ? 'Odesílám…' : 'Odeslat'}</button></form></section></div>}
   </>;
 }
