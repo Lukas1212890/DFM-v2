@@ -54,6 +54,7 @@ async function enhanceTaskEditor(panel){
   if(norm(heading?.textContent)!=='task')return;
   panel.dataset.taskEnhanced='1';
 
+  const isNew=norm(panel.querySelector('.sheet-header .eyebrow')?.textContent)==='nová položka';
   const fields=[...panel.querySelectorAll('.form-fields > .field')];
   const byLabel=label=>fields.find(field=>norm(field.querySelector('span')?.textContent)===norm(label));
   const typeField=byLabel('Typ úkolu');
@@ -74,7 +75,7 @@ async function enhanceTaskEditor(panel){
     if(label)label.textContent='Název úkolu';
     if(original){
       const existing=unpackTask(original.value);
-      const initialTitle=existing.title||(oldType&&oldType!=='Ostatní'?oldType:'');
+      const initialTitle=existing.title||(!isNew&&oldType&&oldType!=='Ostatní'?oldType:'');
       original.style.display='none';
       original.setAttribute('aria-hidden','true');
       original.required=false;
