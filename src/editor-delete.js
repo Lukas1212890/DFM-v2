@@ -1,140 +1,112 @@
 const STORE_KEY = 'dfm_react_pwa_v1';
+const EDIT_KEY = 'dfm_edit_target';
 
 function readData() {
-  try {
-    return JSON.parse(localStorage.getItem(STORE_KEY) || 'null');
-  } catch {
-    return null;
-  }
+  try { return JSON.parse(localStorage.getItem(STORE_KEY) || 'null'); }
+  catch { return null; }
 }
 
-function fieldValue(form, name) {
-  return form.querySelector(`[name="${name}"]`)?.value?.trim() || '';
+function writeData(data) {
+  localStorage.setItem(STORE_KEY, JSON.stringify(data));
 }
 
-function findItem(data, type, form) {
-  if (!data) return null;
-
-  if (type === 'pilot') {
-    const name = fieldValue(form, 'name');
-    const phone = fieldValue(form, 'phone');
-    const email = fieldValue(form, 'email');
-    const item = data.pilots?.find(x =>
-      x.name === name &&
-      (x.phone || '') === phone &&
-      (x.email || '') === email
-    ) || data.pilots?.find(x => x.name === name);
-
-    return item
-      ? { list: data.pilots, item, label: `pilota „${item.name}“`, button: 'Smazat pilota' }
-      : null;
-  }
-
-  if (type === 'task') {
-    const taskType = fieldValue(form, 'type');
-    const custom = fieldValue(form, 'custom');
-    const dueDate = fieldValue(form, 'dueDate');
-    const assignedTo = fieldValue(form, 'assignedTo');
-
-    const item = data.tasks?.find(x =>
-      x.type === taskType &&
-      (x.custom || '') === custom &&
-      (x.dueDate || '') === dueDate &&
-      (x.assignedTo || '') === assignedTo
-    ) || data.tasks?.find(x =>
-      x.type === taskType &&
-      (x.custom || '') === custom &&
-      (x.dueDate || '') === dueDate
-    );
-
-    const title = item
-      ? (item.type === 'Ostatní' ? item.custom || 'Ostatní' : item.type)
-      : (taskType === 'Ostatní' ? custom || 'Ostatní' : taskType);
-
-    return item
-      ? { list: data.tasks, item, label: `úkol „${title}“`, button: 'Smazat úkol' }
-      : null;
-  }
-
-  if (type === 'flight') {
-    const date = fieldValue(form, 'date');
-    const location = fieldValue(form, 'location');
-    const item = data.flights?.find(x =>
-      (x.date || '') === date &&
-      (x.location || '') === location
-    );
-
-    return item
-      ? { list: data.flights, item, label: `let „${location || date || 'bez názvu'}“`, button: 'Smazat let' }
-      : null;
-  }
-
+function currentSection() {
+  const label = document.querySelector('.bottom-nav button.active small')?.textContent?.trim();
+  if (label === 'Piloti') return 'pilot';
+  if (label === 'Úkoly') return 'task';
+  if (label === 'Lety') return 'flight';
   return null;
 }
 
-function enhanceEditorDelete() {
-  document.querySelectorAll('.sheet-panel').forEach(panel => {
-    const form = panel.querySelector('form');
-    const type = panel.querySelector('.sheet-header h2')?.textContent?.trim();
-    const eyebrow = panel.querySelector('.sheet-header .eyebrow')?.textContent?.trim();
+function rememberEditedItem() {
+  const type = currentSection();
+  if (!type) return;
 
-    if (!form || eyebrow !== 'Úprava položky' || !['pilot', 'task', 'flight'].includes(type)) return;
+  const data = readData();
+  if (!data) return;
 
-    const actions = panel.querySelector('.sheet-actions');
-    if (!actions) return;
+  const key = type === 'pilot' ? 'pilots' : type === 'task' ? 'tasks' : 'flights';
+  const cards = [...document.querySelectorAll('.content .list > .list-item')];
 
-    const data = readData();
-    const match = findItem(data, type, form);
-    if (!match) return;
+  cards.forEach((card, index) => {
+    const edit = card.querySelector('.mini-button');
+    if (!edit || edit.dataset.deleteTargetReady === 'true') return;
+    const item = data[key]?.[index];
+    if (!item) return;
 
-    let button = actions.querySelector('.editor-delete-button');
-    if (button) return;
-
-    button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'danger-button editor-delete-button';
-    button.textContent = match.button;
-
-    button.addEventListener('click', () => {
-      const freshData = readData();
-      const freshMatch = findItem(freshData, type, form);
-      if (!freshMatch) {
-        window.alert('Položku se nepodařilo najít. Zavři úpravu a otevři ji znovu.');
-        return;
-      }
-
-      if (!window.confirm(`Opravdu smazat ${freshMatch.label}?`)) return;
-
-      const index = freshMatch.list.findIndex(x => x.id === freshMatch.item.id);
-      if (index < 0) return;
-
-      freshMatch.list.splice(index, 1);
-      localStorage.setItem(STORE_KEY, JSON.stringify(freshData));
-      window.location.reload();
-    });
-
-    actions.prepend(button);
+    edit.dataset.deleteTargetReady = 'true';
+    edit.addEventListener('click', () => {
+      sessionStorage.setItem(EDIT_KEY, JSON.stringify({ type, id: item.id }));
+    }, true);
   });
 }
 
+function itemLabel(type, item) {
+  if (type === 'pilot') return `pilota „${item.name || 'bez jména'}“`;
+  if (type === 'task') {
+    const title = item.type === 'Ostatní' ? (item.custom || 'Ostatní') : (item.type || 'bez názvu');
+    return `úkol „${title}“`;
+  }
+  return `let „${item.location || item.date || 'bez názvu'}“`;
+}
+
+function buttonLabel(type) {
+  if (type === 'pilot') return 'Smazat pilota';
+  if (type === 'task') return 'Smazat úkol';
+  return 'Smazat let';
+}
+
+function enhanceEditorDelete() {
+  rememberEditedItem();
+
+  const panel = document.querySelector('.sheet-panel');
+  if (!panel || panel.dataset.nativeDeleteReady === 'true') return;
+  if (panel.querySelector('.sheet-header .eyebrow')?.textContent?.trim() !== 'Úprava položky') return;
+
+  let target;
+  try { target = JSON.parse(sessionStorage.getItem(EDIT_KEY) || 'null'); }
+  catch { target = null; }
+  if (!target || !['pilot', 'task', 'flight'].includes(target.type)) return;
+
+  const data = readData();
+  if (!data) return;
+  const key = target.type === 'pilot' ? 'pilots' : target.type === 'task' ? 'tasks' : 'flights';
+  const item = data[key]?.find(entry => entry.id === target.id);
+  if (!item) return;
+
+  const actions = panel.querySelector('.sheet-actions');
+  if (!actions) return;
+
+  panel.dataset.nativeDeleteReady = 'true';
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'danger-button editor-delete-button';
+  button.textContent = buttonLabel(target.type);
+  button.addEventListener('click', () => {
+    if (!window.confirm(`Opravdu smazat ${itemLabel(target.type, item)}?`)) return;
+    const index = data[key].findIndex(entry => entry.id === target.id);
+    if (index < 0) return;
+    data[key].splice(index, 1);
+    writeData(data);
+    sessionStorage.setItem('dfm_return_section', target.type === 'pilot' ? 'Piloti' : target.type === 'task' ? 'Úkoly' : 'Lety');
+    sessionStorage.removeItem(EDIT_KEY);
+    window.location.reload();
+  });
+  actions.prepend(button);
+}
+
 let scheduled = false;
-const observer = new MutationObserver(() => {
+new MutationObserver(() => {
   if (scheduled) return;
   scheduled = true;
   requestAnimationFrame(() => {
     scheduled = false;
     enhanceEditorDelete();
   });
-});
+}).observe(document.documentElement, { childList: true, subtree: true });
 
-observer.observe(document.documentElement, {
-  childList: true,
-  subtree: true,
-  attributes: true,
-  attributeFilter: ['value']
-});
+document.addEventListener('click', event => {
+  if (event.target.closest('.bottom-nav button')) sessionStorage.removeItem(EDIT_KEY);
+}, true);
 
-document.addEventListener('input', enhanceEditorDelete, true);
-document.addEventListener('change', enhanceEditorDelete, true);
-document.addEventListener('DOMContentLoaded', enhanceEditorDelete);
 enhanceEditorDelete();
