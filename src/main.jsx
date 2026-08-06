@@ -23,6 +23,8 @@ import './drone-record-alerts.css';
 import './drone-record-alerts';
 import './drone-offices.css';
 import './drone-offices';
+import './drone-archive.css';
+import './drone-archive';
 
 const DEFAULT_CLOUD_API = 'https://dfm-cloud-api.bednarik.workers.dev';
 if (!localStorage.getItem('dfm_cloud_api_url')) {
