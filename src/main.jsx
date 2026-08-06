@@ -37,11 +37,17 @@ if (!localStorage.getItem('dfm_cloud_api_url')) {
   localStorage.setItem('dfm_cloud_api_url', DEFAULT_CLOUD_API);
 }
 
-const updateSW = registerSW({
+let updateSW = () => {};
+updateSW = registerSW({
   immediate: true,
   onNeedRefresh() {
-    const accepted = window.confirm('Je dostupná nová verze DFM. Aktualizovat nyní?');
-    if (accepted) updateSW(true);
+    updateSW(true);
+  },
+  onRegisteredSW(_swUrl, registration) {
+    if (registration) {
+      registration.update();
+      window.setInterval(() => registration.update(), 60 * 60 * 1000);
+    }
   },
   onOfflineReady() {
     console.info('DFM je připravené pro offline použití.');
@@ -53,3 +59,4 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <CloudShell />
   </React.StrictMode>
 );
+
