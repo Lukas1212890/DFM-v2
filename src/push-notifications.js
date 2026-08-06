@@ -22,7 +22,7 @@ async function getSubscription(){
   return registration.pushManager.getSubscription();
 }
 
-async function enablePush(button,status){
+async function enablePush(button,status,testButton){
   try{
     if(!isStandalone()&&/iPhone|iPad|iPod/i.test(navigator.userAgent))throw new Error('Na iPhonu nejdřív přidejte DFM na plochu a spusťte ji z ikony.');
     if(!('Notification'in window)||!('serviceWorker'in navigator)||!('PushManager'in window))throw new Error('Toto zařízení nepodporuje push oznámení.');
@@ -34,17 +34,30 @@ async function enablePush(button,status){
     if(!subscription)subscription=await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64ToBytes(VAPID_PUBLIC_KEY)});
     await api('/push/subscribe',{method:'POST',body:JSON.stringify({subscription:subscription.toJSON(),device:navigator.userAgent.slice(0,240)})});
     status.textContent='Oznámení jsou na tomto zařízení aktivní.';
-    button.textContent='Oznámení povolena';button.classList.add('enabled');
+    button.textContent='Oznámení povolena';button.classList.add('enabled');button.disabled=false;
+    if(testButton)testButton.disabled=false;
   }catch(error){status.textContent=error.message||'Oznámení se nepodařilo zapnout.';button.disabled=false;}
 }
 
-async function disablePush(button,status){
+async function disablePush(button,status,testButton){
   try{
     const subscription=await getSubscription();
     if(subscription){await api('/push/unsubscribe',{method:'POST',body:JSON.stringify({endpoint:subscription.endpoint})});await subscription.unsubscribe();}
     status.textContent='Oznámení jsou na tomto zařízení vypnutá.';
     button.textContent='Povolit oznámení';button.classList.remove('enabled');button.disabled=false;
+    if(testButton)testButton.disabled=true;
   }catch(error){status.textContent=error.message||'Oznámení se nepodařilo vypnout.';}
+}
+
+async function testPush(button,status){
+  try{
+    const subscription=await getSubscription();
+    if(!subscription||Notification.permission!=='granted')throw new Error('Nejdřív povolte oznámení na tomto zařízení.');
+    button.disabled=true;status.textContent='Odesílám testovací notifikaci…';
+    const result=await api('/push/test',{method:'POST'});
+    status.textContent=result.sent>0?'Testovací notifikace byla odeslána.':'Server nenašel aktivní zařízení pro tento účet.';
+  }catch(error){status.textContent=error.message||'Testovací notifikaci se nepodařilo odeslat.';}
+  finally{button.disabled=false;}
 }
 
 async function enhanceSettings(){
@@ -52,14 +65,19 @@ async function enhanceSettings(){
   if(!panel||panel.querySelector('.push-settings'))return;
   const section=document.createElement('section');
   section.className='push-settings';
-  section.innerHTML='<p class="eyebrow">Upozornění</p><h3>Push notifikace</h3><p class="push-description">Nové a změněné úkoly, připomenutí termínu a další důležité události přímo do telefonu.</p><button type="button" class="push-enable">Povolit oznámení</button><button type="button" class="push-disable">Vypnout na tomto zařízení</button><small class="push-status">Kontroluji stav…</small>';
+  section.innerHTML='<p class="eyebrow">Upozornění</p><h3>Push notifikace</h3><p class="push-description">Nové a změněné úkoly, připomenutí termínu a další důležité události přímo do telefonu.</p><button type="button" class="push-enable">Povolit oznámení</button><button type="button" class="push-test">Odeslat testovací notifikaci</button><button type="button" class="push-disable">Vypnout na tomto zařízení</button><small class="push-status">Kontroluji stav…</small>';
   const about=panel.querySelector('.about-box');
   if(about)panel.insertBefore(section,about);else panel.appendChild(section);
-  const enable=section.querySelector('.push-enable'),disable=section.querySelector('.push-disable'),status=section.querySelector('.push-status');
+  const enable=section.querySelector('.push-enable'),test=section.querySelector('.push-test'),disable=section.querySelector('.push-disable'),status=section.querySelector('.push-status');
   const subscription=await getSubscription().catch(()=>null);
-  if(subscription&&Notification.permission==='granted'){enable.textContent='Oznámení povolena';enable.classList.add('enabled');status.textContent='Oznámení jsou na tomto zařízení aktivní.';}else status.textContent='Oznámení zatím nejsou povolena.';
-  enable.onclick=()=>enablePush(enable,status);
-  disable.onclick=()=>disablePush(enable,status);
+  if(subscription&&Notification.permission==='granted'){
+    enable.textContent='Oznámení povolena';enable.classList.add('enabled');status.textContent='Oznámení jsou na tomto zařízení aktivní.';test.disabled=false;
+  }else{
+    status.textContent='Oznámení zatím nejsou povolena.';test.disabled=true;
+  }
+  enable.onclick=()=>enablePush(enable,status,test);
+  test.onclick=()=>testPush(test,status);
+  disable.onclick=()=>disablePush(enable,status,test);
 }
 
 let timer=0;
