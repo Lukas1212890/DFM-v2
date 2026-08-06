@@ -31,6 +31,10 @@ Po každém pushi do `main` se aplikace automaticky sestaví a publikuje.
 
 PWA používá `registerType: autoUpdate`. Když je dostupná nová verze, aplikace nabídne její okamžité načtení.
 
+## Chat
+
+Ikona chatu zobrazuje počet nepřečtených zpráv. Po otevření chatu se počítadlo vynuluje a během aktivního přihlášení se nové zprávy kontrolují průběžně.
+
 ## Data
 
 Data se ukládají lokálně v prohlížeči přes `localStorage`.
