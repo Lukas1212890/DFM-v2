@@ -4,15 +4,15 @@ const OFFICES=['Zlín','Praha'];
 const norm=value=>String(value||'').trim().toLocaleLowerCase('cs-CZ');
 let refreshTimer=0;
 let navigationTimer=0;
-let pickerTimer=0;
 
 function readData(){
   try{return JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}')}
   catch{return{drones:[]}}
 }
 function currentOffice(){
-  const value=localStorage.getItem(OFFICE_KEY)||'';
-  return OFFICES.includes(value)?value:'';
+  const value=localStorage.getItem(OFFICE_KEY)||'Zlín';
+  if(!OFFICES.includes(value))return'Zlín';
+  return value;
 }
 function setOffice(value){
   if(OFFICES.includes(value))localStorage.setItem(OFFICE_KEY,value);
@@ -24,12 +24,6 @@ function counts(){
 }
 function closePicker(){document.querySelector('.drone-office-overlay')?.remove()}
 function removeOfficeHeader(){document.querySelectorAll('.drone-office-current').forEach(node=>node.remove())}
-function isDroneButton(button){
-  if(!(button instanceof HTMLElement))return false;
-  const label=norm(button.querySelector('small')?.textContent);
-  if(label==='drony')return true;
-  return Boolean(button.closest('.dashboard-stats'))&&norm(button.textContent).startsWith('drony');
-}
 function droneTitle(){return[...document.querySelectorAll('.section-title h2')].find(node=>norm(node.textContent)==='drony')}
 function isDroneList(){return Boolean(droneTitle())&&!document.querySelector('.detail-hero')}
 function getDroneCards(){
@@ -43,7 +37,6 @@ function getDroneCards(){
 function addOfficeHeader(){
   if(!isDroneList()){removeOfficeHeader();return;}
   const office=currentOffice();
-  if(!office)return;
   const title=droneTitle();
   const titleSection=title.closest('.section-title')||title.parentElement;
   let bar=document.querySelector('.drone-office-current');
@@ -57,7 +50,7 @@ function addOfficeHeader(){
   if(bar.dataset.signature===signature)return;
   bar.dataset.signature=signature;
   bar.innerHTML=`<div><small>Pobočka</small><strong>${office}</strong><span>${count} ${count===1?'dron':'dronů'}</span></div><button type="button">Změnit</button>`;
-  bar.querySelector('button').addEventListener('click',()=>openPicker());
+  bar.querySelector('button').addEventListener('click',openPicker);
 }
 function applyOfficeView(){
   clearTimeout(refreshTimer);
@@ -68,7 +61,6 @@ function applyOfficeView(){
       return;
     }
     const office=currentOffice();
-    if(!office)return;
     addOfficeHeader();
     const drones=readData().drones||[];
     const {list,cards}=getDroneCards();
@@ -117,8 +109,8 @@ function patchNewDroneSaves(){
       try{
         const data=JSON.parse(value);
         if(Array.isArray(data.drones)){
-          const office=currentOffice()||'Zlín';
-          data.drones=data.drones.map(drone=>drone.office||knownIds.has(drone.id)?drone:{...drone,office});
+          const office=currentOffice();
+          data.drones=data.drones.map(drone=>(drone.office||knownIds.has(drone.id))?drone:{...drone,office});
           knownIds=new Set(data.drones.map(drone=>drone.id));
           value=JSON.stringify(data);
         }
@@ -141,16 +133,10 @@ function watchNavigation(){
   observer.observe(document.body,{childList:true,subtree:true});
 }
 function start(){
+  if(!localStorage.getItem(OFFICE_KEY))setOffice('Zlín');
   patchNewDroneSaves();
   watchNavigation();
-  removeOfficeHeader();
-  document.addEventListener('click',event=>{
-    const button=event.target.closest('button');
-    if(!isDroneButton(button))return;
-    clearTimeout(pickerTimer);
-    pickerTimer=setTimeout(()=>{
-      if(isDroneList())openPicker();
-    },120);
-  },true);
+  if(isDroneList())applyOfficeView();
+  else removeOfficeHeader();
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
