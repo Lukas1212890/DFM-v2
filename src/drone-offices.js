@@ -4,6 +4,7 @@ const OFFICES=['Zlín','Praha'];
 const norm=value=>String(value||'').trim().toLocaleLowerCase('cs-CZ');
 let bypassNavigation=false;
 let refreshTimer=0;
+let navigationTimer=0;
 
 function readData(){
   try{return JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}')}
@@ -22,6 +23,7 @@ function counts(){
   return Object.fromEntries(OFFICES.map(office=>[office,drones.filter(drone=>officeOf(drone)===office).length]));
 }
 function closePicker(){document.querySelector('.drone-office-overlay')?.remove()}
+function removeOfficeHeader(){document.querySelectorAll('.drone-office-current').forEach(node=>node.remove())}
 function isDroneButton(button){
   if(!(button instanceof HTMLElement))return false;
   const label=norm(button.querySelector('small')?.textContent);
@@ -39,7 +41,7 @@ function getDroneCards(){
   return{list,cards};
 }
 function addOfficeHeader(){
-  if(!isDroneList())return;
+  if(!isDroneList()){removeOfficeHeader();return;}
   const office=currentOffice();
   if(!office)return;
   const title=droneTitle();
@@ -61,7 +63,8 @@ function applyOfficeView(){
   clearTimeout(refreshTimer);
   refreshTimer=setTimeout(()=>{
     if(!isDroneList()){
-      document.querySelector('.drone-office-current')?.remove();
+      removeOfficeHeader();
+      closePicker();
       return;
     }
     const office=currentOffice();
@@ -87,7 +90,7 @@ function applyOfficeView(){
       }
       empty.innerHTML=`<strong>V pobočce ${office} zatím nejsou žádné drony.</strong><span>Přidejte první dron zeleným tlačítkem +.</span>`;
     }else empty?.remove();
-  },100);
+  },60);
 }
 function openPicker(sourceButton=null){
   closePicker();
@@ -131,8 +134,27 @@ function patchNewDroneSaves(){
   };
   Storage.prototype.__dfmSafeOfficePatched=true;
 }
+function watchNavigation(){
+  const observer=new MutationObserver(()=>{
+    clearTimeout(navigationTimer);
+    navigationTimer=setTimeout(()=>{
+      if(isDroneList())applyOfficeView();
+      else{removeOfficeHeader();closePicker();}
+    },30);
+  });
+  observer.observe(document.body,{childList:true,subtree:true});
+  document.addEventListener('click',event=>{
+    const button=event.target.closest('button');
+    if(!button||isDroneButton(button))return;
+    setTimeout(()=>{
+      if(!isDroneList()){removeOfficeHeader();closePicker();}
+    },0);
+  },true);
+}
 function start(){
   patchNewDroneSaves();
+  watchNavigation();
+  removeOfficeHeader();
   document.addEventListener('click',event=>{
     if(bypassNavigation)return;
     const button=event.target.closest('button');
