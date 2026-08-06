@@ -1,9 +1,12 @@
 const STORAGE_KEY='dfm_react_pwa_v1';
 
+const activeAccident=item=>!(item?.status==='Ano'||item?.resolved===true);
+const activeClaim=item=>item?.status!=='Vyřízeno';
+const activeService=item=>!(item?.status==='Ano'||item?.resolved===true);
 const recordCounts=drone=>({
-  accidents:(drone?.accidents||[]).length,
-  claims:(drone?.claims||[]).filter(item=>item?.status!=='Vyřízeno').length,
-  services:(drone?.services||[]).length
+  accidents:(drone?.accidents||[]).filter(activeAccident).length,
+  claims:(drone?.claims||[]).filter(activeClaim).length,
+  services:(drone?.services||[]).filter(activeService).length
 });
 
 function loadDrones(){
@@ -59,7 +62,7 @@ function refreshDroneCards(){
     const main=card.querySelector('.item-main');
     main?.appendChild(buildBadges(drone));
     card.classList.add('has-drone-alert');
-    if((drone.accidents||[]).length)card.classList.add('has-accident-alert');
+    if(recordCounts(drone).accidents)card.classList.add('has-accident-alert');
   });
 }
 
@@ -78,14 +81,11 @@ function refreshDetailTabCounts(drone){
     const item=config[base.toLocaleLowerCase('cs-CZ')];
     if(!item)return;
     const current=button.querySelector('.drone-tab-count');
-    if(!item.count){
-      current?.remove();
-      return;
-    }
+    if(!item.count){current?.remove();return;}
     const count=current||document.createElement('span');
     count.className=`drone-tab-count ${item.kind}`;
     count.textContent=String(item.count);
-    count.setAttribute('aria-label',`${item.count} záznamů`);
+    count.setAttribute('aria-label',`${item.count} aktivních záznamů`);
     if(!current)button.appendChild(count);
   });
 }
@@ -104,34 +104,20 @@ function refreshDroneDetail(){
   const sensorTags=hero.querySelector(':scope > .sensor-tags');
   if(sensorTags)sensorTags.insertAdjacentElement('afterend',badges);
   else hero.querySelector('.detail-row')?.insertAdjacentElement('afterend',badges);
-  if((drone.accidents||[]).length)hero.classList.add('has-accident-alert');
+  if(recordCounts(drone).accidents)hero.classList.add('has-accident-alert');
 }
 
 let timer=0;
-function scheduleRefresh(){
-  clearTimeout(timer);
-  timer=setTimeout(()=>{
-    refreshDroneCards();
-    refreshDroneDetail();
-  },80);
-}
-
-const observer=new MutationObserver(records=>{
-  if(records.some(record=>[...record.addedNodes].some(node=>node instanceof HTMLElement)))scheduleRefresh();
-});
-
+function scheduleRefresh(){clearTimeout(timer);timer=setTimeout(()=>{refreshDroneCards();refreshDroneDetail()},80)}
+const observer=new MutationObserver(records=>{if(records.some(record=>[...record.addedNodes].some(node=>node instanceof HTMLElement)))scheduleRefresh()});
 function start(){
   observer.observe(document.body,{childList:true,subtree:true});
   addEventListener('storage',event=>{if(event.key===STORAGE_KEY)scheduleRefresh()});
   const original=Storage.prototype.setItem;
   if(!Storage.prototype.__dfmDroneAlertsPatched){
-    Storage.prototype.setItem=function(key,value){
-      original.call(this,key,value);
-      if(this===localStorage&&key===STORAGE_KEY)scheduleRefresh();
-    };
+    Storage.prototype.setItem=function(key,value){const result=original.call(this,key,value);if(this===localStorage&&key===STORAGE_KEY)scheduleRefresh();return result};
     Storage.prototype.__dfmDroneAlertsPatched=true;
   }
   scheduleRefresh();
 }
-
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
