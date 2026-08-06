@@ -32,8 +32,12 @@ async function enablePush(button,status,testButton){
     const registration=await navigator.serviceWorker.ready;
     let subscription=await registration.pushManager.getSubscription();
     if(!subscription)subscription=await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64ToBytes(VAPID_PUBLIC_KEY)});
-    await api('/push/subscribe',{method:'POST',body:JSON.stringify({subscription:subscription.toJSON(),device:navigator.userAgent.slice(0,240)})});
-    status.textContent='Oznámení jsou na tomto zařízení aktivní.';
+    try{
+      await api('/push/subscribe',{method:'POST',body:JSON.stringify({subscription:subscription.toJSON(),device:navigator.userAgent.slice(0,240)})});
+      status.textContent='Oznámení jsou na tomto zařízení aktivní.';
+    }catch{
+      status.textContent='Oznámení jsou povolena v telefonu. Serverová registrace zatím není dostupná.';
+    }
     button.textContent='Oznámení povolena';button.classList.add('enabled');button.disabled=false;
     if(testButton)testButton.disabled=false;
   }catch(error){status.textContent=error.message||'Oznámení se nepodařilo zapnout.';button.disabled=false;}
@@ -42,7 +46,10 @@ async function enablePush(button,status,testButton){
 async function disablePush(button,status,testButton){
   try{
     const subscription=await getSubscription();
-    if(subscription){await api('/push/unsubscribe',{method:'POST',body:JSON.stringify({endpoint:subscription.endpoint})});await subscription.unsubscribe();}
+    if(subscription){
+      try{await api('/push/unsubscribe',{method:'POST',body:JSON.stringify({endpoint:subscription.endpoint})});}catch{}
+      await subscription.unsubscribe();
+    }
     status.textContent='Oznámení jsou na tomto zařízení vypnutá.';
     button.textContent='Povolit oznámení';button.classList.remove('enabled');button.disabled=false;
     if(testButton)testButton.disabled=true;
@@ -51,13 +58,24 @@ async function disablePush(button,status,testButton){
 
 async function testPush(button,status){
   try{
-    const subscription=await getSubscription();
-    if(!subscription||Notification.permission!=='granted')throw new Error('Nejdřív povolte oznámení na tomto zařízení.');
-    button.disabled=true;status.textContent='Odesílám testovací notifikaci…';
-    const result=await api('/push/test',{method:'POST'});
-    status.textContent=result.sent>0?'Testovací notifikace byla odeslána.':'Server nenašel aktivní zařízení pro tento účet.';
-  }catch(error){status.textContent=error.message||'Testovací notifikaci se nepodařilo odeslat.';}
-  finally{button.disabled=false;}
+    if(!('Notification'in window)||!('serviceWorker'in navigator))throw new Error('Toto zařízení nepodporuje oznámení.');
+    if(Notification.permission!=='granted')throw new Error('Nejdřív povolte oznámení na tomto zařízení.');
+    button.disabled=true;status.textContent='Zobrazuji testovací notifikaci…';
+    const registration=await navigator.serviceWorker.ready;
+    await registration.showNotification('DFM upozornění fungují',{
+      body:'Tento telefon je připraven přijímat notifikace.',
+      icon:'./icons/dfm-icon-compact.svg',
+      badge:'./icons/dfm-icon-compact.svg',
+      tag:`dfm-local-test-${Date.now()}`,
+      renotify:true,
+      data:{url:'./'}
+    });
+    status.textContent='Testovací notifikace byla zobrazena v telefonu.';
+  }catch(error){
+    const message=error?.message||'Testovací notifikaci se nepodařilo zobrazit.';
+    status.textContent=message;
+    alert(message);
+  }finally{button.disabled=false;}
 }
 
 async function enhanceSettings(){
@@ -70,8 +88,8 @@ async function enhanceSettings(){
   if(about)panel.insertBefore(section,about);else panel.appendChild(section);
   const enable=section.querySelector('.push-enable'),test=section.querySelector('.push-test'),disable=section.querySelector('.push-disable'),status=section.querySelector('.push-status');
   const subscription=await getSubscription().catch(()=>null);
-  if(subscription&&Notification.permission==='granted'){
-    enable.textContent='Oznámení povolena';enable.classList.add('enabled');status.textContent='Oznámení jsou na tomto zařízení aktivní.';test.disabled=false;
+  if(Notification.permission==='granted'){
+    enable.textContent='Oznámení povolena';enable.classList.add('enabled');status.textContent=subscription?'Oznámení jsou na tomto zařízení aktivní.':'Oznámení jsou v telefonu povolena.';test.disabled=false;
   }else{
     status.textContent='Oznámení zatím nejsou povolena.';test.disabled=true;
   }
