@@ -2,9 +2,9 @@ const STORAGE_KEY='dfm_react_pwa_v1';
 const OFFICE_KEY='dfm_selected_drone_office';
 const OFFICES=['Zlín','Praha'];
 const norm=value=>String(value||'').trim().toLocaleLowerCase('cs-CZ');
-let bypassNavigation=false;
 let refreshTimer=0;
 let navigationTimer=0;
+let pickerTimer=0;
 
 function readData(){
   try{return JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}')}
@@ -57,7 +57,7 @@ function addOfficeHeader(){
   if(bar.dataset.signature===signature)return;
   bar.dataset.signature=signature;
   bar.innerHTML=`<div><small>Pobočka</small><strong>${office}</strong><span>${count} ${count===1?'dron':'dronů'}</span></div><button type="button">Změnit</button>`;
-  bar.querySelector('button').addEventListener('click',()=>openPicker(null));
+  bar.querySelector('button').addEventListener('click',()=>openPicker());
 }
 function applyOfficeView(){
   clearTimeout(refreshTimer);
@@ -92,7 +92,8 @@ function applyOfficeView(){
     }else empty?.remove();
   },60);
 }
-function openPicker(sourceButton=null){
+function openPicker(){
+  if(!isDroneList())return;
   closePicker();
   const total=counts();
   const overlay=document.createElement('div');
@@ -103,11 +104,6 @@ function openPicker(sourceButton=null){
   overlay.querySelectorAll('[data-office]').forEach(button=>button.addEventListener('click',()=>{
     setOffice(button.dataset.office);
     closePicker();
-    if(sourceButton){
-      bypassNavigation=true;
-      sourceButton.click();
-      bypassNavigation=false;
-    }
     applyOfficeView();
   }));
   document.body.appendChild(overlay);
@@ -143,26 +139,18 @@ function watchNavigation(){
     },30);
   });
   observer.observe(document.body,{childList:true,subtree:true});
-  document.addEventListener('click',event=>{
-    const button=event.target.closest('button');
-    if(!button||isDroneButton(button))return;
-    setTimeout(()=>{
-      if(!isDroneList()){removeOfficeHeader();closePicker();}
-    },0);
-  },true);
 }
 function start(){
   patchNewDroneSaves();
   watchNavigation();
   removeOfficeHeader();
   document.addEventListener('click',event=>{
-    if(bypassNavigation)return;
     const button=event.target.closest('button');
     if(!isDroneButton(button))return;
-    event.preventDefault();
-    event.stopPropagation();
-    event.stopImmediatePropagation();
-    openPicker(button);
+    clearTimeout(pickerTimer);
+    pickerTimer=setTimeout(()=>{
+      if(isDroneList())openPicker();
+    },120);
   },true);
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
