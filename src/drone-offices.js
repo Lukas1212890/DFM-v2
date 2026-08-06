@@ -1,3 +1,4 @@
+// DFM drone offices navigation fix v2
 const STORAGE_KEY='dfm_react_pwa_v1';
 const OFFICE_KEY='dfm_selected_drone_office';
 const OFFICES=['Zlín','Praha'];
