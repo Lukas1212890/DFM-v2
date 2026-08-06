@@ -14,8 +14,7 @@
     "vite": "^6.0.5",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "vite-plugin-pwa": "^0.21.1",
-    "web-push": "^3.6.7"
+    "vite-plugin-pwa": "^0.21.1"
   },
   "devDependencies": {}
 }
