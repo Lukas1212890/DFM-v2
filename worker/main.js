@@ -32,8 +32,9 @@ async function sendToUser(env,userId,payload){
   }
   return {sent};
 }
-const taskTitle=t=>t?.title||t?.custom||t?.type||'Nový úkol';
-const assignedValue=t=>String(t?.assignedTo||t?.assignedUserId||t?.userId||'').trim().toLowerCase();
+const TASK_MARKER='<<<DFM_TASK_TEXT>>>';
+const taskTitle=t=>String(t?.title||t?.custom||t?.type||'Nový úkol').split(TASK_MARKER)[0].trim()||'Nový úkol';
+const assignedValue=t=>String(t?.assignedUserId||t?.assignedEmail||t?.assignedTo||t?.userId||'').trim().toLowerCase();
 async function findAssignedUser(env,task){
   const value=assignedValue(task);if(!value)return null;
   return env.DB.prepare('SELECT id,email,name FROM users WHERE active=1 AND (lower(id)=? OR lower(email)=? OR lower(name)=?)').bind(value,value,value).first();
@@ -68,6 +69,11 @@ export default{
     const url=new URL(request.url),origin=request.headers.get('origin')||'*';
     if(request.method==='OPTIONS')return app.fetch(request,env);
     try{
+      if(url.pathname==='/users/directory'&&request.method==='GET'){
+        const user=await currentUser(request,env);if(!user)return json({error:'Přihlášení je vyžadováno.'},401,origin);
+        const rows=await env.DB.prepare('SELECT id,email,name,role,active FROM users WHERE active=1 ORDER BY name,email').all();
+        return json({users:rows.results||[]},200,origin);
+      }
       if(url.pathname.startsWith('/push/')){
         await ensurePushSchema(env);
         const user=await currentUser(request,env);if(!user)return json({error:'Přihlášení je vyžadováno.'},401,origin);
