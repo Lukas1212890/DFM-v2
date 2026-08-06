@@ -1,0 +1,24 @@
+.settings-overlay{
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;
+  align-items:flex-start;
+  padding-top:max(12px,env(safe-area-inset-top));
+  padding-bottom:max(24px,env(safe-area-inset-bottom));
+}
+
+.settings-panel{
+  max-height:calc(100dvh - max(24px,env(safe-area-inset-top)) - max(36px,env(safe-area-inset-bottom)));
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;
+  touch-action:pan-y;
+  padding-bottom:calc(28px + env(safe-area-inset-bottom));
+}
+
+.settings-panel header{
+  position:sticky;
+  top:0;
+  z-index:3;
+  background:inherit;
+}
