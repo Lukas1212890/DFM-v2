@@ -22,12 +22,17 @@ async function loadDirectory(){
   try{cached=JSON.parse(localStorage.getItem(DIRECTORY_KEY)||'[]')}catch{}
   try{
     const me=(await request('/auth/me')).user;
-    if(me&&!cached.some(x=>x.id===me.id))cached.push({id:me.id,name:me.name,email:me.email,active:1});
+    if(me&&!cached.some(x=>x.id===me.id))cached.push({id:me.id,name:me.name,email:me.email,role:me.role,active:1});
   }catch{}
   try{
-    const users=(await request('/admin/users')).users||[];
-    cached=users.filter(x=>x.active!==0).map(x=>({id:x.id,name:x.name,email:x.email,active:x.active}));
-  }catch{}
+    const users=(await request('/users/directory')).users||[];
+    cached=users.filter(x=>x.active!==0).map(x=>({id:x.id,name:x.name,email:x.email,role:x.role,active:x.active}));
+  }catch{
+    try{
+      const users=(await request('/admin/users')).users||[];
+      cached=users.filter(x=>x.active!==0).map(x=>({id:x.id,name:x.name,email:x.email,role:x.role,active:x.active}));
+    }catch{}
+  }
   try{localStorage.setItem(DIRECTORY_KEY,JSON.stringify(cached))}catch{}
   return cached;
 }
@@ -227,6 +232,7 @@ function start(){
   document.querySelectorAll('.sheet-panel').forEach(enhanceTaskEditor);
   loadDirectory().finally(scheduleRefresh);
   addEventListener('storage',event=>{if(event.key===STORAGE_KEY)scheduleRefresh()});
+  addEventListener('dfm:data-updated',scheduleRefresh);
   scheduleRefresh();
 }
 
