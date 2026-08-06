@@ -1,6 +1,7 @@
 name = "dfm-cloud-api"
 main = "worker/main.js"
 compatibility_date = "2026-08-01"
+compatibility_flags = ["nodejs_compat"]
 
 [[d1_databases]]
 binding = "DB"
@@ -9,3 +10,8 @@ database_id = "5b287b82-ce09-455a-8e61-57e8b1e13b16"
 
 [vars]
 ALLOWED_ORIGIN = "*"
+VAPID_PUBLIC_KEY = "BAUGcOUw2FizW5mr3imCkmF-dTx8M-v_81pJs5dQv2f5JlaW8MO5gQrjjcz26uLa_esFBQ-qFAyJzb_HaOCjreU"
+VAPID_SUBJECT = "mailto:bednarik@dronetech.cz"
+
+[triggers]
+crons = ["0 7 * * *"]
