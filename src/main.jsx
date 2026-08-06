@@ -24,7 +24,6 @@ import './more-menu-cleanup.css';
 import './drone-record-alerts.css';
 import './drone-record-alerts';
 import './drone-offices.css';
-import './drone-offices';
 import './drone-archive.css';
 import './drone-archive';
 import './archive-navigation-fix';
