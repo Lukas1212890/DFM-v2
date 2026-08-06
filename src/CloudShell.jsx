@@ -3,7 +3,7 @@ import{BarcodeFormat,EncodeHintType,QRCodeWriter}from'@zxing/library';
 import AppV2 from'./AppV2';
 import'./cloud-shell.css';
 
-const STORAGE_KEY='dfm_react_pwa_v1',SESSION_KEY='dfm_auth_session',PENDING_KEY='dfm_pending_sync';
+const STORAGE_KEY='dfm_react_pwa_v1',SESSION_KEY='dfm_auth_session',PENDING_KEY='dfm_pending_sync',CHAT_STATE_KEY='dfm_chat_state_v1';
 const API='https://dfm-cloud-api.bednarik.workers.dev';
 const APP_URL='https://lukas1212890.github.io/DFM-v2/';
 const EMPTY={drones:[],pilots:[],flights:[],tasks:[]};
@@ -27,8 +27,8 @@ export default function CloudShell(){
  const[busy,setBusy]=useState(false),[error,setError]=useState(''),[status,setStatus]=useState('Připojuji…');
  const[profileOpen,setProfileOpen]=useState(false),[usersOpen,setUsersOpen]=useState(false),[passwordOpen,setPasswordOpen]=useState(false);
  const[users,setUsers]=useState([]),[newUser,setNewUser]=useState({name:'',email:'',role:'user'}),[inviteCard,setInviteCard]=useState(null),[adminError,setAdminError]=useState('');
- const[chatOpen,setChatOpen]=useState(false),[messages,setMessages]=useState([]),[message,setMessage]=useState('');
- const lastRemote=useRef(''),syncing=useRef(false),saveTimer=useRef(null),autoInviteDone=useRef(false);
+ const[chatOpen,setChatOpen]=useState(false),[messages,setMessages]=useState([]),[message,setMessage]=useState(''),[unreadCount,setUnreadCount]=useState(0);
+ const lastRemote=useRef(''),syncing=useRef(false),saveTimer=useRef(null),autoInviteDone=useRef(false),chatOpenRef=useRef(false);
  const request=async(path,options={},needsAuth=true)=>{const headers={'content-type':'application/json',...(needsAuth&&token?{authorization:`Bearer ${token}`}:{})};const response=await fetch(`${API}${path}`,{...options,headers:{...headers,...(options.headers||{})}});let payload={};try{payload=await response.json();}catch{}if(!response.ok){const e=new Error(payload.error||`Cloud odpověděl ${response.status}`);e.status=response.status;throw e;}return payload;};
  const applySession=r=>{localStorage.setItem(SESSION_KEY,r.token);setToken(r.token);setUser(r.user);setAuth('ready');setStatus('Online');history.replaceState(null,'',location.pathname+location.search);setTimeout(()=>location.reload(),80);};
  const clearSession=()=>{localStorage.removeItem(SESSION_KEY);setToken('');setUser(null);setAuth('login');setCode('');setPassword('');};
@@ -56,8 +56,35 @@ export default function CloudShell(){
  const copyInvite=async()=>{await navigator.clipboard.writeText(currentInviteLink);alert('Jednorázový přihlašovací odkaz byl zkopírován.');};
  const shareInvite=async()=>{if(!inviteCard)return;const text=`Ahoj, otevři tento jednorázový odkaz pro automatické přihlášení do DFM:\n${currentInviteLink}`;if(navigator.share)await navigator.share({title:'Pozvánka do DFM',text,url:currentInviteLink});else{await navigator.clipboard.writeText(text);alert('Pozvánka byla zkopírována.');}};
 
- const loadChat=async()=>{if(!navigator.onLine)return;try{setMessages((await request('/chat')).messages||[]);}catch{}};
- useEffect(()=>{if(!chatOpen)return;loadChat();const i=setInterval(loadChat,5000);return()=>clearInterval(i);},[chatOpen,token]);
+ const chatStorageKey=user?.id?`${CHAT_STATE_KEY}:${user.id}`:'';
+ const readChatState=()=>{if(!chatStorageKey)return null;try{return JSON.parse(localStorage.getItem(chatStorageKey)||'null');}catch{return null;}};
+ const writeChatState=(knownIds,unreadIds)=>{if(!chatStorageKey)return;localStorage.setItem(chatStorageKey,JSON.stringify({knownIds:knownIds.slice(-100),unreadIds:unreadIds.slice(-100)}));};
+ const loadChat=async()=>{if(!navigator.onLine||!token||!chatStorageKey)return;try{
+   const nextMessages=(await request('/chat')).messages||[];
+   setMessages(nextMessages);
+   const ids=nextMessages.map(x=>x.id),stored=readChatState();
+   if(!stored){
+     writeChatState(ids,[]);
+     setUnreadCount(0);
+     return;
+   }
+   const known=new Set(Array.isArray(stored.knownIds)?stored.knownIds:[]);
+   const newIds=ids.filter(id=>!known.has(id));
+   const previousUnread=(Array.isArray(stored.unreadIds)?stored.unreadIds:[]).filter(id=>ids.includes(id));
+   const unread=chatOpenRef.current?[]:[...new Set([...previousUnread,...newIds])];
+   writeChatState(ids,unread);
+   setUnreadCount(unread.length);
+ }catch{}};
+ const openChat=()=>{
+   chatOpenRef.current=true;
+   setChatOpen(true);
+   const ids=messages.map(x=>x.id);
+   writeChatState(ids,[]);
+   setUnreadCount(0);
+   loadChat();
+ };
+ const closeChat=()=>{chatOpenRef.current=false;setChatOpen(false);};
+ useEffect(()=>{if(auth!=='ready'||!token||!chatStorageKey)return;loadChat();const i=setInterval(loadChat,5000);const refresh=()=>{if(document.visibilityState==='visible')loadChat();};addEventListener('online',loadChat);document.addEventListener('visibilitychange',refresh);return()=>{clearInterval(i);removeEventListener('online',loadChat);document.removeEventListener('visibilitychange',refresh);};},[auth,token,chatStorageKey]);
  const sendMessage=async e=>{e.preventDefault();if(!navigator.onLine){alert('Chat vyžaduje internet.');return;}await request('/chat',{method:'POST',body:JSON.stringify({message:message.trim()})});setMessage('');loadChat();};
 
  if(auth==='checking')return <div className="auth-screen"><div className="auth-card auth-loading"><div className="auth-logo">DFM</div><p>{location.hash.startsWith('#invite=')?'Přihlašuji z pozvánky…':'Ověřuji přihlášení…'}</p></div></div>;
@@ -66,12 +93,12 @@ export default function CloudShell(){
  if(auth==='login')return <div className="auth-screen"><section className="auth-card"><div className="auth-logo">DFM</div><p className="auth-kicker">Drone Fleet Manager</p><h1>{initialized?'Přihlášení':'První spuštění'}</h1><form onSubmit={login}>{!initialized&&<label>Jméno<input value={name} onChange={e=>setName(e.target.value)} required/></label>}<label>Firemní e-mail<input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="jmeno@dronetech.cz" required/></label>{initialized&&loginMode==='password'?<label>Administrátorské heslo<input type="password" value={password} onChange={e=>setPassword(e.target.value)} autoComplete="current-password" required/></label>:<label>{initialized?(pinAuth?'Šestimístný PIN':'Jednorázový přístupový kód'):'Startovací kód'}<input className="pin-input" type={initialized&&pinAuth?'password':'text'} inputMode={initialized&&pinAuth?'numeric':undefined} value={code} onChange={e=>setCode(initialized&&pinAuth?e.target.value.replace(/\D/g,'').slice(0,6):e.target.value.toUpperCase())} placeholder={initialized?(pinAuth?'••••••':'ABCD-EFGH'):'ABCD-EFGH'} minLength={initialized&&pinAuth?6:undefined} maxLength={initialized&&pinAuth?6:undefined} required/></label>}{error&&<p className="auth-error">{error}</p>}<button disabled={busy}>{busy?'Přihlašuji…':initialized?'Přihlásit se':'Vytvořit administrátora'}</button></form>{initialized&&<button className="auth-switch" onClick={()=>{setLoginMode(loginMode==='code'?'password':'code');setError('');setCode('');setPassword('')}}>{loginMode==='code'?'Přihlásit se jako admin heslem':pinAuth?'Použít uživatelský PIN':'Použít jednorázový kód'}</button>}</section></div>;
 
  const permissions=ROLE_PERMISSIONS[user?.role]||ROLE_PERMISSIONS.user;
- return <><AppV2 permissions={permissions}/><button className="cloud-status" onClick={syncNow}>{status}</button><button className="user-chip" onClick={()=>setProfileOpen(v=>!v)}><span>{user?.name?.[0]||'U'}</span><div><strong>{user?.name}</strong><small>{roleLabel(user?.role)}</small></div></button><button className="chat-fab" onClick={()=>setChatOpen(true)}>💬</button>
+ return <><AppV2 permissions={permissions}/><button className="cloud-status" onClick={syncNow}>{status}</button><button className="user-chip" onClick={()=>setProfileOpen(v=>!v)}><span>{user?.name?.[0]||'U'}</span><div><strong>{user?.name}</strong><small>{roleLabel(user?.role)}</small></div></button><button className="chat-fab" onClick={openChat} aria-label={unreadCount?`Otevřít chat, ${unreadCount} nepřečtených zpráv`:'Otevřít chat'}>💬{unreadCount>0&&<span className="chat-unread-badge" aria-hidden="true">{unreadCount}</span>}</button>
  {profileOpen&&<aside className="profile-menu"><strong>{user?.name}</strong><span>{user?.email}</span><em>{roleLabel(user?.role)}</em>{user?.role==='admin'&&<><button onClick={()=>setPasswordOpen(true)}>{user?.hasPassword?'Změnit admin heslo':'Nastavit admin heslo'}</button><button onClick={openUsers}>Správa uživatelů</button></>}<button onClick={logout}>Odhlásit se</button></aside>}
  {passwordOpen&&<div className="chat-overlay"><form className="password-panel" onSubmit={saveAdminPassword}><header><h2>{user?.hasPassword?'Změnit admin heslo':'Nastavit admin heslo'}</h2><button type="button" onClick={()=>setPasswordOpen(false)}>×</button></header><p>Toto heslo slouží jako nouzový přístup pro administrátora na novém zařízení.</p><label>Nové heslo<input type="password" value={newPassword} onChange={e=>setNewPassword(e.target.value)} minLength="10" required/></label><label>Heslo znovu<input type="password" value={password2} onChange={e=>setPassword2(e.target.value)} minLength="10" required/></label>{adminError&&<p className="auth-error">{adminError}</p>}<button>Uložit heslo</button></form></div>}
  {usersOpen&&<div className="chat-overlay"><section className="users-panel"><header><div><small>Administrace</small><h2>Uživatelé</h2></div><button onClick={()=>setUsersOpen(false)}>×</button></header><div className="users-content"><form className="invite-form" onSubmit={createUser}><h3>Přidat uživatele</h3><input value={newUser.name} onChange={e=>setNewUser({...newUser,name:e.target.value})} placeholder="Jméno" required/><input type="email" value={newUser.email} onChange={e=>setNewUser({...newUser,email:e.target.value})} placeholder="jmeno@dronetech.cz" required/><select value={newUser.role} onChange={e=>setNewUser({...newUser,role:e.target.value})}><option value="user">Uživatel</option><option value="pilot">Pilot</option><option value="technician">Technik</option><option value="admin">Administrátor</option></select><button>Vytvořit pozvánku</button></form>
  {inviteCard&&<div className="link-invite"><h3>{inviteCard.user.name}</h3><span>{inviteCard.user.email}</span><p>QR nebo odkaz slouží k jednorázové aktivaci účtu a nastavení vlastního šestimístného PINu.</p><div className="invite-qr" dangerouslySetInnerHTML={{__html:inviteQr}}/><input readOnly value={currentInviteLink}/><div><button onClick={copyInvite}>Kopírovat odkaz</button><button onClick={shareInvite}>Sdílet pozvánku</button></div></div>}{adminError&&<p className="auth-error">{adminError}</p>}
  <div className="users-list">{users.map(item=><article key={item.id}><input value={item.name} onChange={e=>setUsers(xs=>xs.map(x=>x.id===item.id?{...x,name:e.target.value}:x))}/><span>{item.email}</span><small className={Number(item.sessions||0)>0?'session-on':'session-off'}>{Number(item.sessions||0)>0?`Přihlášen · ${item.sessions} zařízení`:'Odhlášen · 0 zařízení'}{item.invite_ready?' · pozvánka připravena':''}{item.role==='admin'&&item.has_password?' · heslo nastaveno':''}</small><select value={item.role} onChange={e=>setUsers(xs=>xs.map(x=>x.id===item.id?{...x,role:e.target.value}:x))}><option value="user">Uživatel</option><option value="pilot">Pilot</option><option value="technician">Technik</option><option value="admin">Administrátor</option></select><label><input type="checkbox" checked={Boolean(item.active)} onChange={e=>setUsers(xs=>xs.map(x=>x.id===item.id?{...x,active:e.target.checked?1:0}:x))}/> Aktivní</label><div className="user-actions"><button onClick={()=>updateUser(item)}>Uložit</button><button onClick={()=>regenerate(item)}>Nový QR / odkaz</button><button onClick={()=>forceLogout(item)}>Odhlásit zařízení</button><button className="delete-user" onClick={()=>deleteUser(item)}>Smazat uživatele</button></div></article>)}</div></div></section></div>}
- {chatOpen&&<div className="chat-overlay"><section className="chat-panel"><header><div><small>Společná místnost</small><h2>DFM Chat</h2></div><button onClick={()=>setChatOpen(false)}>×</button></header><div className="chat-messages">{messages.map(x=><article key={x.id}><strong>{x.author}</strong><p>{x.message}</p><time>{new Date(x.created_at+'Z').toLocaleString('cs-CZ')}</time></article>)}</div><form onSubmit={sendMessage}><textarea value={message} onChange={e=>setMessage(e.target.value)} required/><button>Odeslat</button></form></section></div>}</>;
+ {chatOpen&&<div className="chat-overlay"><section className="chat-panel"><header><div><small>Společná místnost</small><h2>DFM Chat</h2></div><button onClick={closeChat}>×</button></header><div className="chat-messages">{messages.map(x=><article key={x.id}><strong>{x.author}</strong><p>{x.message}</p><time>{new Date(x.created_at+'Z').toLocaleString('cs-CZ')}</time></article>)}</div><form onSubmit={sendMessage}><textarea value={message} onChange={e=>setMessage(e.target.value)} required/><button>Odeslat</button></form></section></div>}</>;
 }
 
