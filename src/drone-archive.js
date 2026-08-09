@@ -114,7 +114,7 @@ function archiveItems(drone){
 }
 
 function notifyDataChanged(){
-  window.dispatchEvent(new CustomEvent('dfm-data-changed',{detail:{source:'archive'}}));
+  window.dispatchEvent(new CustomEvent('dfm:data-updated',{detail:{source:'archive'}}));
 }
 
 function writeAndRefresh(data,{filter='all'}={}){
