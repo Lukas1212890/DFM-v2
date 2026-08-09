@@ -17,6 +17,8 @@ import './task-assignment.css';
 import './task-assignment';
 import './task-calendar-fix';
 import './dashboard-task-alert-position';
+import './flight-assignment-alert.css';
+import './flight-assignment-alert';
 import './accident-pilot-select';
 import './sheet-scroll-fix.css';
 import './settings-scroll-fix.css';
@@ -37,17 +39,11 @@ if (!localStorage.getItem('dfm_cloud_api_url')) {
   localStorage.setItem('dfm_cloud_api_url', DEFAULT_CLOUD_API);
 }
 
-let updateSW = () => {};
-updateSW = registerSW({
+const updateSW = registerSW({
   immediate: true,
   onNeedRefresh() {
-    updateSW(true);
-  },
-  onRegisteredSW(_swUrl, registration) {
-    if (registration) {
-      registration.update();
-      window.setInterval(() => registration.update(), 60 * 60 * 1000);
-    }
+    const accepted = window.confirm('Je dostupná nová verze DFM. Aktualizovat nyní?');
+    if (accepted) updateSW(true);
   },
   onOfflineReady() {
     console.info('DFM je připravené pro offline použití.');
@@ -59,4 +55,3 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <CloudShell />
   </React.StrictMode>
 );
-
