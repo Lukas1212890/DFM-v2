@@ -53,6 +53,18 @@ async function notifyTaskChanges(env,previousState,nextState){
     await sendToUser(env,user.id,{title:old?'Úkol byl upraven':'Máte nový úkol',body:`${taskTitle(task)}${task.dueDate?` · termín ${task.dueDate}`:''}`,tag:`task-${task.id}`,url:'./#tasks'});
   }
 }
+async function notifyFlightChanges(env,previousState,nextState){
+  const before=new Map((previousState?.flights||[]).map(f=>[f.id,f])),pilots=new Map((nextState?.pilots||[]).map(p=>[p.id,p]));
+  for(const flight of nextState?.flights||[]){
+    const pilot=pilots.get(flight.pilotId);if(!pilot)continue;
+    const identity=String(pilot.appUserId||pilot.email||pilot.name||'').trim().toLowerCase();if(!identity)continue;
+    const old=before.get(flight.id),changed=!old||JSON.stringify({p:old.pilotId,d:old.date,l:old.location,r:old.droneId})!==JSON.stringify({p:flight.pilotId,d:flight.date,l:flight.location,r:flight.droneId});
+    if(!changed)continue;
+    const user=await env.DB.prepare('SELECT id FROM users WHERE active=1 AND (lower(id)=? OR lower(email)=? OR lower(name)=?)').bind(identity,identity,identity).first();if(!user)continue;
+    const drone=(nextState?.drones||[]).find(d=>d.id===flight.droneId),details=[flight.date,flight.location,drone?.name].filter(Boolean).join(' · ');
+    await sendToUser(env,user.id,{title:old?'Naplánovaný let byl upraven':'Máte naplánovaný nový let',body:details||'Otevřete DFM pro podrobnosti.',tag:`flight-${flight.id}`,url:'./#flights'});
+  }
+}
 async function sendDueReminders(env){
   await ensurePushSchema(env);
   const row=await env.DB.prepare('SELECT data FROM app_state WHERE id=1').first();if(!row)return;
@@ -104,7 +116,7 @@ export default{
         const beforeRow=await env.DB.prepare('SELECT data FROM app_state WHERE id=1').first();
         const before=beforeRow?JSON.parse(beforeRow.data):{tasks:[]};
         const copy=request.clone(),response=await app.fetch(request,env);
-        if(response.ok){const body=await copy.json().catch(()=>null);if(body?.data)await notifyTaskChanges(env,before,body.data);}
+        if(response.ok){const body=await copy.json().catch(()=>null);if(body?.data)await Promise.all([notifyTaskChanges(env,before,body.data),notifyFlightChanges(env,before,body.data)]);}
         return response;
       }
       return app.fetch(request,env);
