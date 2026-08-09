@@ -2,6 +2,9 @@ import webpush from 'web-push';
 import app from './index.js';
 
 const json=(data,status=200,origin='*')=>new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json; charset=utf-8','access-control-allow-origin':origin,'access-control-allow-methods':'GET,POST,PUT,DELETE,OPTIONS','access-control-allow-headers':'content-type,authorization','cache-control':'no-store'}});
+const rolesOf=user=>{const raw=Array.isArray(user?.roles)?user.roles:String(user?.role||'user').split(',');const roles=[...new Set(raw.map(role=>String(role).trim().toLowerCase()).filter(Boolean))];return roles.length?roles:['user'];};
+const hasRole=(user,role)=>rolesOf(user).includes(role);
+const primaryRole=roles=>roles.includes('admin')?'admin':roles[0]||'user';
 
 async function currentUser(request,env){
   const url=new URL(request.url);url.pathname='/auth/me';url.search='';
@@ -72,7 +75,7 @@ export default{
       if(url.pathname==='/users/directory'&&request.method==='GET'){
         const user=await currentUser(request,env);if(!user)return json({error:'Přihlášení je vyžadováno.'},401,origin);
         const rows=await env.DB.prepare('SELECT id,email,name,role,active FROM users WHERE active=1 ORDER BY name,email').all();
-        return json({users:rows.results||[]},200,origin);
+        return json({users:(rows.results||[]).map(item=>{const roles=rolesOf(item);return{...item,role:primaryRole(roles),roles};})},200,origin);
       }
       if(url.pathname.startsWith('/push/')){
         await ensurePushSchema(env);
@@ -92,7 +95,7 @@ export default{
         }
       }
       if(request.method==='DELETE'&&(url.pathname==='/chat'||url.pathname.startsWith('/chat/'))){
-        const user=await currentUser(request,env);if(!user)return json({error:'Přihlášení je vyžadováno.'},401,origin);if(user.role!=='admin')return json({error:'Mazat zprávy může pouze administrátor.'},403,origin);
+        const user=await currentUser(request,env);if(!user)return json({error:'Přihlášení je vyžadováno.'},401,origin);if(!hasRole(user,'admin'))return json({error:'Mazat zprávy může pouze administrátor.'},403,origin);
         if(url.pathname==='/chat'){await env.DB.prepare('DELETE FROM chat_messages').run();return json({ok:true},200,origin);}
         const id=decodeURIComponent(url.pathname.slice('/chat/'.length));if(!id)return json({error:'Chybí ID zprávy.'},400,origin);
         const result=await env.DB.prepare('DELETE FROM chat_messages WHERE id=?').bind(id).run();if(!result.meta?.changes)return json({error:'Zpráva nebyla nalezena.'},404,origin);return json({ok:true},200,origin);
