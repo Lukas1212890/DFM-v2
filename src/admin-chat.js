@@ -17,7 +17,7 @@ style.textContent=`
 .chat-admin-tools{position:relative;margin-left:auto;display:flex;align-items:center;gap:8px}.chat-admin-options{width:40px;height:40px;border:0;border-radius:12px;background:rgba(255,255,255,.07);color:#fff;font-size:1.35rem;line-height:1}.chat-admin-menu{position:absolute;top:48px;right:0;z-index:20;width:220px;padding:8px;border:1px solid rgba(255,255,255,.12);border-radius:14px;background:#0b1726;box-shadow:0 16px 40px rgba(0,0,0,.45);display:grid;gap:5px}.chat-admin-menu[hidden]{display:none}.chat-admin-menu button{width:100%!important;height:auto!important;padding:11px 12px!important;border:0!important;border-radius:10px!important;background:rgba(255,255,255,.055)!important;color:#eaf3ff!important;font-size:.78rem!important;text-align:left!important}.chat-admin-menu button.danger{background:rgba(255,91,91,.12)!important;color:#ffaaaa!important}.chat-admin-menu button.active{background:rgba(45,140,255,.18)!important;color:#9dcbff!important}.chat-messages article{position:relative}.chat-delete-one{position:absolute;top:7px;right:7px;width:30px;height:30px;border:0;border-radius:9px;background:rgba(255,91,91,.14);color:#ff9d9d;font-size:.9rem}.chat-delete-mode article{padding-right:45px}`;
 document.head.appendChild(style);
 
-async function checkAdmin(){try{const r=await api('/auth/me');isAdmin=r.user?.role==='admin';}catch{isAdmin=false;}}
+async function checkAdmin(){try{const r=await api('/auth/me'),roles=Array.isArray(r.user?.roles)?r.user.roles:String(r.user?.role||'').split(',');isAdmin=roles.includes('admin');}catch{isAdmin=false;}}
 
 function addDeleteButtons(panel){
   const box=panel.querySelector('.chat-messages');
