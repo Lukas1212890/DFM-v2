@@ -55,6 +55,7 @@ function refreshDroneCards(){
     : heading.closest('.content')?.querySelector('.list');
   const cards=[...(list?.querySelectorAll(':scope > .list-item')||[])];
   cards.forEach((card,index)=>{
+    if(card.dataset.droneAlertNative==='true')return;
     card.querySelector('.drone-record-badges')?.remove();
     card.classList.remove('has-drone-alert','has-accident-alert');
     const drone=drones[index];
