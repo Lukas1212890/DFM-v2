@@ -86,7 +86,7 @@ export default function CloudShell(){
    loadChat();
  };
  const closeChat=()=>{chatOpenRef.current=false;setChatOpen(false);};
- useEffect(()=>{if(auth!=='ready'||!token||!chatStorageKey)return;loadChat();const i=setInterval(loadChat,5000);const refresh=()=>{if(document.visibilityState==='visible')loadChat();};addEventListener('online',loadChat);document.addEventListener('visibilitychange',refresh);return()=>{clearInterval(i);removeEventListener('online',loadChat);document.removeEventListener('visibilitychange',refresh);};},[auth,token,chatStorageKey]);
+ useEffect(()=>{if(auth!=='ready'||!token||!chatStorageKey)return;loadChat();const i=setInterval(loadChat,5000);const refresh=()=>{if(document.visibilityState==='visible')loadChat();};addEventListener('online',loadChat);addEventListener('dfm:chat-changed',loadChat);document.addEventListener('visibilitychange',refresh);return()=>{clearInterval(i);removeEventListener('online',loadChat);removeEventListener('dfm:chat-changed',loadChat);document.removeEventListener('visibilitychange',refresh);};},[auth,token,chatStorageKey]);
  const sendMessage=async e=>{e.preventDefault();if(!navigator.onLine){alert('Chat vyžaduje internet.');return;}await request('/chat',{method:'POST',body:JSON.stringify({message:message.trim()})});setMessage('');loadChat();};
 
  if(auth==='checking')return <div className="auth-screen"><div className="auth-card auth-loading"><div className="auth-logo">DFM</div><p>{location.hash.startsWith('#invite=')?'Přihlašuji z pozvánky…':'Ověřuji přihlášení…'}</p></div></div>;
