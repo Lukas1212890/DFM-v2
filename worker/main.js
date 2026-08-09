@@ -74,7 +74,7 @@ export default{
     try{
       if(url.pathname==='/users/directory'&&request.method==='GET'){
         const user=await currentUser(request,env);if(!user)return json({error:'Přihlášení je vyžadováno.'},401,origin);
-        const rows=await env.DB.prepare('SELECT id,email,name,role,active FROM users WHERE active=1 ORDER BY name,email').all();
+        const rows=await env.DB.prepare('SELECT id,email,name,role,active,phone,position FROM users WHERE active=1 ORDER BY name,email').all();
         return json({users:(rows.results||[]).map(item=>{const roles=rolesOf(item);return{...item,role:primaryRole(roles),roles};})},200,origin);
       }
       if(url.pathname.startsWith('/push/')){
