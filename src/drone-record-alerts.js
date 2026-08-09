@@ -94,6 +94,7 @@ function refreshDetailTabCounts(drone){
 function refreshDroneDetail(){
   const hero=document.querySelector('.detail-hero');
   if(!hero)return;
+  if(hero.dataset.droneAlertNative==='true')return;
   hero.querySelector('.drone-record-badges.detail')?.remove();
   hero.classList.remove('has-accident-alert');
   const drone=findDetailDrone();
