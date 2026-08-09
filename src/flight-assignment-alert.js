@@ -16,7 +16,7 @@ function renderMyFlights(){
   if(!main||!welcome){document.querySelector('.my-flight-alert')?.remove();return;}
   let data={pilots:[],flights:[]};try{data=JSON.parse(localStorage.getItem(FLIGHT_DATA_KEY)||'{}')}catch{}
   const me=flightCurrentUser;if(!me)return;
-  const pilotIds=(data.pilots||[]).filter(p=>p.appUserId===me.id||flightNorm(p.email)===flightNorm(me.email)||(!p.appUserId&&!p.email&&flightNorm(p.name)===flightNorm(me.name))).map(p=>p.id);
+  const pilotIds=(data.pilots||[]).filter(p=>p.appUserId?String(p.appUserId)===String(me.id):p.email?flightNorm(p.email)===flightNorm(me.email):flightNorm(p.name)===flightNorm(me.name)).map(p=>p.id);
   const flights=(data.flights||[]).filter(f=>pilotIds.includes(f.pilotId)&&(!f.date||f.date>=flightToday())).sort((a,b)=>String(a.date||'9999').localeCompare(String(b.date||'9999')));
   let box=main.querySelector(':scope > .my-flight-alert');if(!flights.length){box?.remove();return;}
   if(!box){box=document.createElement('button');box.type='button';box.className='my-flight-alert';box.addEventListener('click',()=>{const button=[...document.querySelectorAll('.bottom-nav button')].find(x=>flightNorm(x.textContent)==='🛫lety'||flightNorm(x.textContent).endsWith('lety'));button?.click();});}
