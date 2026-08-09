@@ -28,7 +28,7 @@ function addDeleteButtons(panel){
     if(!deleteMode){button?.remove();return;}
     if(button||!article.dataset.messageId)return;
     button=document.createElement('button');button.type='button';button.className='chat-delete-one';button.title='Smazat zprávu';button.textContent='🗑';
-    button.addEventListener('click',async e=>{e.stopPropagation();if(!confirm('Opravdu trvale smazat tuto zprávu?'))return;try{await api(`/chat/${encodeURIComponent(article.dataset.messageId)}`,{method:'DELETE'});article.remove();}catch(err){alert(err.message);}});
+    button.addEventListener('click',async e=>{e.stopPropagation();if(!confirm('Opravdu trvale smazat tuto zprávu?'))return;try{await api(`/chat/${encodeURIComponent(article.dataset.messageId)}`,{method:'DELETE'});window.dispatchEvent(new CustomEvent('dfm:chat-changed'));}catch(err){alert(err.message);}});
     article.appendChild(button);
   });
 }
@@ -61,7 +61,7 @@ function enhance(panel){
   menu.append(individual,clear);tools.append(options,menu);if(close)header.insertBefore(tools,close);else header.appendChild(tools);
   options.addEventListener('click',()=>{menu.hidden=!menu.hidden;});
   individual.addEventListener('click',()=>{deleteMode=!deleteMode;individual.classList.toggle('active',deleteMode);individual.textContent=deleteMode?'✓ Ukončit mazání zpráv':'🗑 Mazat jednotlivé zprávy';menu.hidden=true;markMessageIds(panel);});
-  clear.addEventListener('click',async()=>{if(!confirm('Opravdu trvale smazat celý firemní chat? Tato akce je nevratná.'))return;try{await api('/chat',{method:'DELETE'});panel.querySelector('.chat-messages')?.replaceChildren();deleteMode=false;menu.hidden=true;}catch(err){alert(err.message);}});
+  clear.addEventListener('click',async()=>{if(!confirm('Opravdu trvale smazat celý firemní chat? Tato akce je nevratná.'))return;try{await api('/chat',{method:'DELETE'});deleteMode=false;menu.hidden=true;window.dispatchEvent(new CustomEvent('dfm:chat-changed'));}catch(err){alert(err.message);}});
   const messages=panel.querySelector('.chat-messages');if(messages)new MutationObserver(()=>{if(deleteMode)markMessageIds(panel);}).observe(messages,{childList:true});
 }
 
