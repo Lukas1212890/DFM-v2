@@ -992,3 +992,33 @@
     bottom: calc(var(--nav-h) + env(safe-area-inset-bottom));
   }
 }
+
+/* Keep the add action inside the planner header instead of covering the map. */
+.fve-current-native .header-actions {
+  min-width: 0;
+  align-items: center;
+  flex-wrap: nowrap;
+}
+
+.fve-current-native .header-actions .button.primary {
+  width: auto;
+  height: 40px;
+  min-height: 40px;
+  max-height: 40px;
+  flex: 0 0 auto;
+  align-self: center;
+  padding: 0 13px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+@media (max-width: 780px) {
+  .fve-current-native .header-actions .button.primary {
+    height: 36px !important;
+    min-height: 36px !important;
+    max-height: 36px !important;
+    padding: 0 10px !important;
+    border-radius: 10px;
+    font-size: 11px;
+  }
+}
