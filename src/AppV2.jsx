@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import FvePlanner from "./FvePlanner";
 
 const STORAGE_KEY = "dfm_react_pwa_v1";
@@ -172,6 +172,13 @@ function AppV2({ permissions = {}, user = null }) {
     setData(next);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
   };
+  const savePlants = useCallback((plants) => {
+    setData((current) => {
+      const next = { ...current, plants };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
   const selectedDrone =
     data.drones.find((d) => d.id === selectedDroneId) || null;
   const batteryCount = data.drones.reduce(
@@ -561,7 +568,7 @@ function AppV2({ permissions = {}, user = null }) {
       <FvePlanner
         plants={data.plants || []}
         canEdit={Boolean(permissions.editFlights || permissions.editDrones)}
-        onChange={(plants) => save({ ...data, plants })}
+        onChange={savePlants}
         onCreateFlight={(plant) => {
           setEditor({
             type: "flight",
