@@ -24,6 +24,7 @@ import './theme-switcher';
 import './license-expiry-alert.css';
 import './license-expiry-alert';
 import './notification-center.css';
+import './notification-fab.css';
 import './notification-center';
 import './accident-pilot-select';
 import './sheet-scroll-fix.css';
