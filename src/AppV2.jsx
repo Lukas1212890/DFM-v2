@@ -92,6 +92,7 @@ function AppV2({ permissions = {}, user = null }) {
     [selectedOffice, setSelectedOffice] = useState(null),
     [editor, setEditor] = useState(null),
     [settingsOpen, setSettingsOpen] = useState(false),
+    [assignedFlightView, setAssignedFlightView] = useState(null),
     [moreOpen, setMoreOpen] = useState(false),
     [search, setSearch] = useState(""),
     [sensorFilters, setSensorFilters] = useState([]);
@@ -140,6 +141,24 @@ function AppV2({ permissions = {}, user = null }) {
     addEventListener("dfm:open-record", openRecord);
     return () => removeEventListener("dfm:open-record", openRecord);
   }, [data]);
+  useEffect(() => {
+    const openAssignedFlights = (event) => {
+      const requestedIds = Array.isArray(event.detail?.flightIds)
+        ? event.detail.flightIds.map(String)
+        : [];
+      const flights = data.flights.filter((flight) =>
+        requestedIds.includes(String(flight.id)),
+      );
+      if (!flights.length) return;
+      setAssignedFlightView({
+        flightIds: flights.map((flight) => flight.id),
+        selectedId: flights.length === 1 ? flights[0].id : null,
+      });
+    };
+    addEventListener("dfm:open-assigned-flights", openAssignedFlights);
+    return () =>
+      removeEventListener("dfm:open-assigned-flights", openAssignedFlights);
+  }, [data.flights]);
   useEffect(() => {
     const token = localStorage.getItem(SESSION_KEY) || "";
     if (!token) return;
@@ -749,6 +768,20 @@ function AppV2({ permissions = {}, user = null }) {
           onDelete={() => removeItem(editor)}
         />
       )}{" "}
+      {assignedFlightView && (
+        <AssignedFlightDialog
+          data={data}
+          flightIds={assignedFlightView.flightIds}
+          selectedId={assignedFlightView.selectedId}
+          onSelect={(selectedId) =>
+            setAssignedFlightView((current) => ({ ...current, selectedId }))
+          }
+          onBack={() =>
+            setAssignedFlightView((current) => ({ ...current, selectedId: null }))
+          }
+          onClose={() => setAssignedFlightView(null)}
+        />
+      )}
       {settingsOpen && (
         <Settings
           data={data}
@@ -1276,6 +1309,87 @@ function CollectionCard({ type, item, data, onClick, editable }) {
       </div>
       <span className="mini-button">{editable ? "✎" : "›"}</span>
     </article>
+  );
+}
+
+function AssignedFlightDialog({ data, flightIds, selectedId, onSelect, onBack, onClose }) {
+  const flights = flightIds
+    .map((id) => data.flights.find((flight) => String(flight.id) === String(id)))
+    .filter(Boolean);
+  const flight = selectedId
+    ? flights.find((item) => String(item.id) === String(selectedId))
+    : null;
+  const navigateToFlight = (plant) => {
+    if (!plant || !Number.isFinite(Number(plant.lat)) || !Number.isFinite(Number(plant.lng))) {
+      alert("U tohoto letu nejsou uložené platné souřadnice FVE.");
+      return;
+    }
+    if (!navigator.geolocation) {
+      alert("Tento telefon neumí zjistit aktuální polohu.");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        const url = new URL("https://mapy.com/fnc/v1/route");
+        url.searchParams.set("mapset", "traffic");
+        url.searchParams.set("start", `${coords.longitude},${coords.latitude}`);
+        url.searchParams.set("end", `${plant.lng},${plant.lat}`);
+        url.searchParams.set("routeType", "car_fast_traffic");
+        url.searchParams.set("navigate", "true");
+        window.location.assign(url.toString());
+      },
+      () => alert("Aktuální polohu se nepodařilo získat. Povolte aplikaci přístup k poloze."),
+      { enableHighAccuracy: true, timeout: 10000 },
+    );
+  };
+
+  if (!flight) {
+    return (
+      <div className="assigned-flight-backdrop" role="presentation" onClick={onClose}>
+        <section className="assigned-flight-panel" role="dialog" aria-modal="true" aria-labelledby="assigned-flight-list-title" onClick={(event) => event.stopPropagation()}>
+          <header>
+            <div><p className="eyebrow">Naplánované lety</p><h2 id="assigned-flight-list-title">Vyberte let</h2></div>
+            <button type="button" onClick={onClose} aria-label="Zavřít">×</button>
+          </header>
+          <div className="assigned-flight-list">
+            {flights.map((item) => {
+              const plant = data.plants.find((entry) => String(entry.id) === String(item.fvePlantId));
+              return (
+                <button type="button" key={item.id} onClick={() => onSelect(item.id)}>
+                  <span>🛫</span><div><strong>{plant?.name || item.location || "Naplánovaný let"}</strong><small>{item.date || "Bez data"} · {item.purpose || "Účel neuveden"}</small></div><b>›</b>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      </div>
+    );
+  }
+
+  const plant = data.plants.find((entry) => String(entry.id) === String(flight.fvePlantId));
+  const pilot = data.pilots.find((entry) => String(entry.id) === String(flight.pilotId));
+  const drone = data.drones.find((entry) => String(entry.id) === String(flight.droneId));
+  return (
+    <div className="assigned-flight-backdrop" role="presentation" onClick={onClose}>
+      <section className="assigned-flight-panel" role="dialog" aria-modal="true" aria-labelledby="assigned-flight-title" onClick={(event) => event.stopPropagation()}>
+        <header>
+          <div><p className="eyebrow">Detail naplánovaného letu</p><h2 id="assigned-flight-title">{plant?.name || flight.location || "Naplánovaný let"}</h2></div>
+          <button type="button" onClick={onClose} aria-label="Zavřít">×</button>
+        </header>
+        <div className="assigned-flight-details">
+          <Info label="FVE" value={plant?.name || flight.location || "Neuvedena"} />
+          <Info label="Kontaktní osoba" value={plant?.contactPerson || "Neuvedena"} />
+          <Info label="Telefon" value={plant?.phone || "Neuveden"} />
+          <Info label="Souřadnice FVE" value={plant ? `${Number(plant.lat).toFixed(6)}, ${Number(plant.lng).toFixed(6)}` : "Neuvedeny"} />
+          <Info label="Pilot" value={pilot?.name || "Neuveden"} />
+          <Info label="Dron" value={drone?.name || "Neuveden"} />
+          <Info label="Účel letu" value={flight.purpose || "Neuveden"} />
+        </div>
+        {plant?.phone && <a className="assigned-flight-call" href={`tel:${String(plant.phone).replace(/[^+\d]/g, "")}`}>☎ Zavolat kontaktu · {plant.phone}</a>}
+        <button type="button" className="assigned-flight-route" onClick={() => navigateToFlight(plant)}>Naplánovat trasu z aktuální polohy ↗</button>
+        {flights.length > 1 && <button type="button" className="assigned-flight-back" onClick={onBack}>‹ Vybrat jiný let</button>}
+      </section>
+    </div>
   );
 }
 function DroneDetail({
