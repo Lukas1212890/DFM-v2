@@ -77,8 +77,8 @@ export default function FvePlanner({ plants = [], onChange, onCreateFlight, canE
   const route = () => {
     const chosen = routeIds.map((id) => plants.find((p) => p.id === id)).filter(Boolean).slice(0, 16);
     if (!chosen.length) return;
-    const points = chosen.map((p) => `${p.lat},${p.lng}`).join("&rc=");
-    open(`https://mapy.com/zakladni?planovani-trasy&rc=${encodeURIComponent(points)}&mrp=%7B%22c%22%3A111%7D`, "_blank", "noopener");
+    const points = chosen.map((p) => encodeURIComponent(`${p.lat},${p.lng}`)).join("&rc=");
+    open(`https://mapy.com/zakladni?planovani-trasy&rc=${points}&mrp=%7B%22c%22%3A111%7D`, "_blank", "noopener");
   };
   const exportJson = () => {
     const blob = new Blob([JSON.stringify(plants, null, 2)], { type: "application/json" }), a = document.createElement("a");
