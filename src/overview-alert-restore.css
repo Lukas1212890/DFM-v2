@@ -1,0 +1,2 @@
+.overview-alert-restore{grid-column:1/-1;padding:11px;border:1px solid rgba(57,209,125,.42);border-radius:12px;background:rgba(57,209,125,.13);color:#9af0bd;font-weight:850}.overview-alert-restore:disabled{opacity:.7}
+.my-task-alert,.license-expiry-alert{touch-action:pan-y;transition:transform .24s ease,opacity .24s ease}.my-task-alert.dragging,.license-expiry-alert.dragging{transition:none}.my-task-alert.dismissing,.license-expiry-alert.dismissing{transform:translateX(-115%)!important;opacity:0!important}
