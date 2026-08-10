@@ -176,6 +176,7 @@ function AppV2({ permissions = {}, user = null }) {
         : [];
       const tasks = data.tasks.filter((task) => requestedIds.includes(String(task.id)));
       if (!tasks.length) return;
+      setEditor(null);
       setAssignedTaskView({
         taskIds: tasks.map((task) => task.id),
         selectedId: tasks.length === 1 ? tasks[0].id : null,
@@ -279,6 +280,18 @@ function AppV2({ permissions = {}, user = null }) {
     nav(type);
     if (items.length === 1)
       setTimeout(() => setEditor({ type: singular(type), item: items[0] }), 0);
+  };
+  const openTaskDetails = (items) => {
+    const tasks = items.filter(Boolean);
+    if (!tasks.length) {
+      nav("tasks");
+      return;
+    }
+    setEditor(null);
+    setAssignedTaskView({
+      taskIds: tasks.map((task) => task.id),
+      selectedId: tasks.length === 1 ? tasks[0].id : null,
+    });
   };
   const openActiveAccidents = () => {
     const affected = data.drones.filter((drone) =>
@@ -444,10 +457,7 @@ function AppV2({ permissions = {}, user = null }) {
           label="Otevřené úkoly"
           value={openTasks}
           onClick={() =>
-            openCollectionOrSingle(
-              "tasks",
-              data.tasks.filter((t) => !isDone(t)),
-            )
+            openTaskDetails(data.tasks.filter((t) => !isDone(t)))
           }
         />
       </section>
@@ -457,10 +467,7 @@ function AppV2({ permissions = {}, user = null }) {
           value={openTasks}
           text="otevřených úkolů"
           onClick={() =>
-            openCollectionOrSingle(
-              "tasks",
-              data.tasks.filter((t) => !isDone(t)),
-            )
+            openTaskDetails(data.tasks.filter((t) => !isDone(t)))
           }
         />
         <Attention
@@ -506,7 +513,7 @@ function AppV2({ permissions = {}, user = null }) {
           icon="📋"
           label="Úkoly na dnešek"
           value={todayTasks.length}
-          onClick={() => openCollectionOrSingle("tasks", todayTasks)}
+          onClick={() => openTaskDetails(todayTasks)}
         />
       </section>
       <button
