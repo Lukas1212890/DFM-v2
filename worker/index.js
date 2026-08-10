@@ -1,7 +1,7 @@
 const json=(data,status=200,origin='*')=>new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json; charset=utf-8','access-control-allow-origin':origin,'access-control-allow-methods':'GET,POST,PUT,DELETE,OPTIONS','access-control-allow-headers':'content-type,authorization','cache-control':'no-store'}});
 const DAY_MS=86400000,SESSION_DAYS=365,PASSWORD_ITERATIONS=100000;
-const EMPTY_STATE={drones:[],pilots:[],flights:[],tasks:[]};
-const ROLE_STATE_KEYS={admin:['drones','pilots','flights','tasks'],pilot:['flights','tasks'],technician:['drones','tasks'],user:[]};
+const EMPTY_STATE={drones:[],pilots:[],flights:[],tasks:[],plants:[]};
+const ROLE_STATE_KEYS={admin:['drones','pilots','flights','tasks','plants'],pilot:['flights','tasks','plants'],technician:['drones','tasks','plants'],user:[]};
 const VALID_ROLES=['admin','pilot','technician','user'];
 const parseRoles=value=>[...new Set((Array.isArray(value)?value:String(value||'').split(',')).map(role=>String(role).trim().toLowerCase()).filter(role=>VALID_ROLES.includes(role)))];
 function normalizeRoles(value,fallback='user'){const roles=parseRoles(value);if(!roles.length)roles.push(...parseRoles(fallback));if(roles.length>1)return roles.filter(role=>role!=='user');return roles.length?roles:['user'];}
