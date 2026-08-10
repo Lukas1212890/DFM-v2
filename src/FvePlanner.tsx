@@ -485,7 +485,9 @@ export default function FvePlanner({ plants: externalPlants = [], onChange, onCr
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => {
         setRouteStart(`${coords.latitude.toFixed(7)}, ${coords.longitude.toFixed(7)}`);
-        setMessage("Aktuální poloha byla nastavena jako místo odjezdu.");
+        const locationMessage = "Aktuální poloha byla nastavena jako místo odjezdu.";
+        setMessage(locationMessage);
+        window.setTimeout(() => setMessage((current) => current === locationMessage ? "" : current), 2000);
       },
       () => setMessage("Polohu se nepodařilo získat. Zadej souřadnice ručně."),
       { enableHighAccuracy: true, timeout: 10000 },
