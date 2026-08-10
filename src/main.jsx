@@ -23,6 +23,8 @@ import './theme-switcher.css';
 import './theme-switcher';
 import './license-expiry-alert.css';
 import './license-expiry-alert';
+import './notification-center.css';
+import './notification-center';
 import './accident-pilot-select';
 import './sheet-scroll-fix.css';
 import './settings-scroll-fix.css';
