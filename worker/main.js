@@ -114,7 +114,13 @@ export default{
       }
       if(request.method==='DELETE'&&(url.pathname==='/chat'||url.pathname.startsWith('/chat/'))){
         const user=await currentUser(request,env);if(!user)return json({error:'Přihlášení je vyžadováno.'},401,origin);if(!hasRole(user,'admin'))return json({error:'Mazat zprávy může pouze administrátor.'},403,origin);
-        if(url.pathname==='/chat'){await env.DB.prepare('DELETE FROM chat_messages').run();return json({ok:true},200,origin);}
+        if(url.pathname==='/chat'){
+          const target=String(url.searchParams.get('target')||'').trim();
+          if(!target)return json({error:'Vyberte chat, který chcete smazat.'},400,origin);
+          if(target==='all')await env.DB.prepare('DELETE FROM chat_messages WHERE recipient_id IS NULL').run();
+          else await env.DB.prepare('DELETE FROM chat_messages WHERE (sender_id=? AND recipient_id=?) OR (sender_id=? AND recipient_id=?)').bind(user.id,target,target,user.id).run();
+          return json({ok:true},200,origin);
+        }
         const id=decodeURIComponent(url.pathname.slice('/chat/'.length));if(!id)return json({error:'Chybí ID zprávy.'},400,origin);
         const result=await env.DB.prepare('DELETE FROM chat_messages WHERE id=?').bind(id).run();if(!result.meta?.changes)return json({error:'Zpráva nebyla nalezena.'},404,origin);return json({ok:true},200,origin);
       }
