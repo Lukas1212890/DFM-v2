@@ -105,6 +105,18 @@ export default function FvePlanner({ plants: externalPlants = [], onChange, onCr
   const [routeOpen, setRouteOpen] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [detailPlantId, setDetailPlantId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!formOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    const previousOverscroll = document.body.style.overscrollBehavior;
+    document.body.style.overflow = "hidden";
+    document.body.style.overscrollBehavior = "none";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.body.style.overscrollBehavior = previousOverscroll;
+    };
+  }, [formOpen]);
   const [viewMode, setViewMode] = useState<"active" | "archive" | "all">("active");
   const [message, setMessage] = useState("");
   const [loaded] = useState(true);
@@ -693,7 +705,7 @@ export default function FvePlanner({ plants: externalPlants = [], onChange, onCr
               <button onClick={() => setFormOpen(false)} aria-label="Zavřít">×</button>
             </div>
             <form onSubmit={savePlant}>
-              <label>Název FVE / zákazníka<input autoFocus value={form.name} onChange={(e) => updateField("name", e.target.value)} placeholder="např. FVE Bojanovice" required /></label>
+              <label>Název FVE / zákazníka<input value={form.name} onChange={(e) => updateField("name", e.target.value)} placeholder="např. FVE Bojanovice" required /></label>
               <label>GPS souřadnice<input value={form.coordinates} onChange={(e) => updateField("coordinates", e.target.value)} placeholder="49.1951, 16.6068" required /><small>Vlož zeměpisnou šířku a délku oddělenou čárkou.</small></label>
               <label>Kontaktní osoba<input value={form.contactPerson} onChange={(e) => updateField("contactPerson", e.target.value)} placeholder="např. Jan Novák" /></label>
               <label>Telefonní číslo<input type="tel" inputMode="tel" autoComplete="tel" value={form.phone} onChange={(e) => updateField("phone", e.target.value)} placeholder="+420 123 456 789" /><small>V detailu FVE se zobrazí tlačítko pro přímé vytočení čísla.</small></label>
