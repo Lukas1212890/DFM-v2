@@ -2,13 +2,14 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "./fve-planner.css";
+import "./fve-original.css";
 
 const STATUS = {
-  unpaid: ["Záloha nezaplacena", "#ef4444"],
-  paid: ["Záloha zaplacena", "#f59e0b"],
+  unpaid: ["Záloha nezaplacena", "#f59e0b"],
+  paid: ["Záloha zaplacena", "#22c55e"],
   planned: ["Nafoceno", "#3b82f6"],
   done: ["Report založen", "#8b5cf6"],
-  evaluated: ["Vyhodnoceno", "#22c55e"],
+  evaluated: ["Vyhodnoceno", "#64748b"],
 };
 const blankPlant = () => ({
   id: crypto.randomUUID(), name: "", lat: "", lng: "", note: "", phone: "",
@@ -90,8 +91,8 @@ export default function FvePlanner({ plants = [], onChange, onCreateFlight, canE
     catch { alert("Soubor neobsahuje platný export Plánovače FVE."); }
     event.target.value = "";
   };
-  return <section className="fve-page">
-    <header className="fve-head"><div><p className="eyebrow">Integrovaný modul</p><h2>Plánovač FVE</h2><p>Zakázky, technické údaje, trasy a převod na let v DFM.</p></div>{canEdit && <button className="fve-primary" onClick={() => setEditing(blankPlant())}>+ Přidat FVE</button>}</header>
+  return <section className="fve-page fve-original-theme">
+    <header className="fve-head"><div><p className="eyebrow">Plánovač inspekcí</p><h2>FVE Plánovač</h2><p>Společná mapa fotovoltaických elektráren</p></div>{canEdit && <button className="fve-primary" onClick={() => setEditing(blankPlant())}>+ Přidat FVE</button>}</header>
     <div className="fve-stats">
       <article><strong>{plants.filter((p) => p.status !== "evaluated").length}</strong><span>aktivních FVE</span></article>
       <article><strong>{plants.filter((p) => p.status === "paid").length}</strong><span>připraveno k letu</span></article>
