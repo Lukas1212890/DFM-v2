@@ -1,0 +1,32 @@
+.assigned-task-panel {
+  border-color: rgba(255, 154, 61, .3);
+}
+
+.assigned-task-details {
+  padding-bottom: 10px;
+}
+
+.assigned-task-text {
+  margin: 0 15px 14px;
+  padding: 14px;
+  border: 1px solid rgba(255, 154, 61, .22);
+  border-radius: 14px;
+  background: rgba(255, 154, 61, .07);
+}
+
+.assigned-task-text small {
+  display: block;
+  margin-bottom: 7px;
+  color: #ffc48e;
+  font-size: .68rem;
+  font-weight: 850;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+
+.assigned-task-text p {
+  margin: 0;
+  color: #e7edf5;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
