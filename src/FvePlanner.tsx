@@ -502,22 +502,6 @@ export default function FvePlanner({ plants: externalPlants = [], onChange, onCr
 
   return (
     <main className="app-shell fve-current-native">
-      <header className="topbar">
-        <div className="brand">
-          <div className="brand-mark"><img src="./icons/fve-planner.svg" alt="" /></div>
-          <div><strong>Plánovač inspekcí</strong><span>FVE mapa</span></div>
-        </div>
-        <div className="header-actions">
-          <span className={`sync-state ${syncStatus}`} title={syncStatus === "online" ? "Data jsou uložená online" : syncStatus === "loading" ? "Připojuji databázi" : "Používá se lokální kopie"}>
-            <i />{syncStatus === "online" ? "Online" : syncStatus === "loading" ? "Připojuji…" : "Offline"}
-          </span>
-          <button className="button ghost desktop-only" onClick={exportData} disabled={!plants.length}>Export</button>
-          {canEdit && <button className="button ghost desktop-only" onClick={() => fileInput.current?.click()}>Import</button>}
-          {canEdit && <button className="button primary" onClick={() => { setEditingId(null); setForm(emptyForm); setFormOpen(true); }}>+ Přidat FVE</button>}
-          <input ref={fileInput} type="file" accept=".json,application/json" hidden onChange={importData} />
-        </div>
-      </header>
-
       <section className={`workspace ${compactMap ? "map-compact" : ""}`}>
         <aside className="sidebar">
           <div className="summary">
@@ -618,6 +602,17 @@ export default function FvePlanner({ plants: externalPlants = [], onChange, onCr
           </div>
         </section>
       </section>
+
+      {canEdit && (
+        <button
+          type="button"
+          className="fab fve-add-fab"
+          onClick={() => { setEditingId(null); setForm(emptyForm); setFormOpen(true); }}
+          aria-label="Přidat FVE"
+        >
+          +
+        </button>
+      )}
 
       {detailPlant && (
         <div className="plant-detail-backdrop" role="presentation">
