@@ -34,6 +34,18 @@ html[data-dfm-theme] .fab {
   box-shadow: 0 12px 28px rgba(57, 209, 125, .35);
 }
 
+html[data-dfm-theme] .calendar-fab {
+  right: max(18px, calc((100vw - 780px) / 2 + 18px));
+  bottom: calc(var(--nav-h) + 16px + env(safe-area-inset-bottom));
+  background: linear-gradient(145deg, #4ae08b, #19a75e);
+  box-shadow: 0 12px 28px rgba(57, 209, 125, .35);
+}
+
+.calendar-create-menu {
+  right: max(18px, calc((100vw - 780px) / 2 + 18px));
+  bottom: calc(var(--nav-h) + 84px + env(safe-area-inset-bottom));
+}
+
 @media (max-width: 560px) {
   .notification-bell {
     bottom: calc(150px + env(safe-area-inset-bottom));
