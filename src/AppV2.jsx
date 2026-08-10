@@ -1324,20 +1324,27 @@ function AssignedFlightDialog({ data, flightIds, selectedId, onSelect, onBack, o
       alert("U tohoto letu nejsou uložené platné souřadnice FVE.");
       return;
     }
-    const lat = Number(plant.lat);
-    const lng = Number(plant.lng);
-    const webUrl = new URL("https://mapy.com/fnc/v1/route");
-    webUrl.searchParams.set("mapset", "traffic");
-    webUrl.searchParams.set("end", `${lng},${lat}`);
-    webUrl.searchParams.set("routeType", "car_fast_traffic");
-    webUrl.searchParams.set("navigate", "true");
-    const isAndroid = /Android/i.test(navigator.userAgent);
-    if (isAndroid) {
-      const fallback = encodeURIComponent(webUrl.toString());
-      window.location.assign(`intent://navigation?q=${lat},${lng}&mode=d#Intent;scheme=google.navigation;package=cz.seznam.mapy;S.browser_fallback_url=${fallback};end`);
+    if (!navigator.geolocation) {
+      alert("Tento telefon neumí zjistit aktuální polohu.");
       return;
     }
-    window.location.assign(webUrl.toString());
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        const url = new URL("https://mapy.com/fnc/v1/route");
+        url.searchParams.set("mapset", "traffic");
+        url.searchParams.set("start", `${coords.longitude},${coords.latitude}`);
+        url.searchParams.set("end", `${Number(plant.lng)},${Number(plant.lat)}`);
+        url.searchParams.set("routeType", "car_fast_traffic");
+        const isPhone = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || navigator.maxTouchPoints > 1;
+        if (isPhone) {
+          window.location.assign(url.toString());
+          return;
+        }
+        window.open(url.toString(), "_blank", "noopener,noreferrer");
+      },
+      () => alert("Aktuální polohu se nepodařilo získat. Povolte aplikaci přístup k poloze."),
+      { enableHighAccuracy: true, timeout: 10000 },
+    );
   };
 
   if (!flight) {
