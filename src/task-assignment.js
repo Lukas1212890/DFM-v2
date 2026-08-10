@@ -204,10 +204,11 @@ function renderMyTasks(){
     main.querySelector('.dashboard-welcome')?.insertAdjacentElement('afterend',box);
     box.addEventListener('click',()=>{
       if(box.dataset.swiped==='1')return;
-      const button=[...document.querySelectorAll('.dashboard-button,.attention-button')].find(x=>norm(x.textContent).includes('otevřené úkoly')||norm(x.textContent).includes('otevřených úkolů'));
-      button?.click();
+      let taskIds=[];try{taskIds=JSON.parse(box.dataset.taskIds||'[]')}catch{}
+      dispatchEvent(new CustomEvent('dfm:open-assigned-tasks',{detail:{taskIds}}));
     });
   }
+  box.dataset.taskIds=JSON.stringify(tasks.map(task=>task.id));
   box.dataset.hiddenKey=hiddenKey;
   if(box.dataset.signature===signature)return;
   box.dataset.signature=signature;
