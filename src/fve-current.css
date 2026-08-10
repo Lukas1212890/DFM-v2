@@ -943,21 +943,19 @@
   box-shadow: 0 20px 55px rgba(0, 0, 0, .28);
 }
 
-.fve-current-native .topbar {
-  height: 64px;
-  flex: 0 0 64px;
-  border-radius: 21px 21px 0 0;
+.fve-current-native .workspace {
+  height: 100%;
 }
 
-.fve-current-native .workspace {
-  height: calc(100% - 64px);
+.fve-current-native .fve-add-fab {
+  z-index: 850;
 }
 
 @media (max-width: 780px) {
   .fve-current-native.app-shell {
     width: calc(100% + 28px);
-    height: calc(100dvh - var(--nav-h) - 112px - env(safe-area-inset-bottom));
-    min-height: 560px;
+    height: calc(100dvh - var(--nav-h) - 92px - env(safe-area-inset-bottom));
+    min-height: 0;
     margin: -10px -14px 0;
     padding: 0 !important;
     border-right: 0;
@@ -965,60 +963,36 @@
     border-radius: 0;
   }
 
-  .fve-current-native .topbar {
-    height: 58px;
-    padding: 0 12px;
-    border-radius: 0;
-  }
-
   .fve-current-native .workspace,
   .fve-current-native .workspace.map-compact {
-    height: calc(100% - 58px);
+    height: 100%;
+  }
+
+  .fve-current-native .workspace.map-compact {
+    grid-template-rows: minmax(135px, 24%) minmax(0, 76%);
+  }
+
+  .fve-current-native .plant-list {
+    padding-bottom: calc(76px + env(safe-area-inset-bottom));
   }
 }
 
 @media (max-width: 780px) and (pointer: coarse) {
   .fve-current-native.app-shell {
-    height: calc(100dvh - var(--nav-h) - 112px - env(safe-area-inset-bottom));
+    height: calc(100dvh - var(--nav-h) - 92px - env(safe-area-inset-bottom));
     min-height: 0;
     padding: 0 !important;
   }
 
   .fve-current-native .workspace {
-    height: calc(100% - 58px);
+    height: 100%;
+  }
+
+  .fve-current-native .workspace.map-compact {
+    grid-template-rows: minmax(135px, 24%) minmax(0, 76%);
   }
 
   .fve-current-native .route-panel.open {
     bottom: calc(var(--nav-h) + env(safe-area-inset-bottom));
-  }
-}
-
-/* Keep the add action inside the planner header instead of covering the map. */
-.fve-current-native .header-actions {
-  min-width: 0;
-  align-items: center;
-  flex-wrap: nowrap;
-}
-
-.fve-current-native .header-actions .button.primary {
-  width: auto;
-  height: 40px;
-  min-height: 40px;
-  max-height: 40px;
-  flex: 0 0 auto;
-  align-self: center;
-  padding: 0 13px;
-  line-height: 1;
-  white-space: nowrap;
-}
-
-@media (max-width: 780px) {
-  .fve-current-native .header-actions .button.primary {
-    height: 36px !important;
-    min-height: 36px !important;
-    max-height: 36px !important;
-    padding: 0 10px !important;
-    border-radius: 10px;
-    font-size: 11px;
   }
 }
