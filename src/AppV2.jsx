@@ -1376,7 +1376,7 @@ function CollectionCard({ type, item, data, onClick, editable }) {
   if (type === "flight") {
     icon = "🛫";
     title = item.location || "Let";
-    sub = `${item.date || "Bez data"} · ${data.drones.find((d) => d.id === item.droneId)?.name || "Dron"} · ${data.pilots.find((p) => p.id === item.pilotId)?.name || "Pilot"}`;
+    sub = `${item.date || "Bez data"} · ${data.drones.find((d) => d.id === item.droneId)?.name || "Dron"} · ${item.assignedName || data.pilots.find((p) => p.id === item.pilotId)?.name || "Pilot"}`;
   }
   if (type === "task") {
     icon = isDone(item) ? "✓" : "○";
@@ -1539,11 +1539,15 @@ function AssignedFlightDialog({ data, user, flightIds, selectedId, onSelect, onB
   const plant = data.plants.find((entry) => String(entry.id) === String(flight.fvePlantId));
   const pilot = data.pilots.find((entry) => String(entry.id) === String(flight.pilotId));
   const drone = data.drones.find((entry) => String(entry.id) === String(flight.droneId));
-  const isCurrentPilot = pilot?.appUserId
-    ? String(pilot.appUserId) === String(user?.id)
-    : pilot?.email
-      ? norm(pilot.email) === norm(user?.email)
-      : norm(pilot?.name) === norm(user?.name);
+  const isCurrentPilot = flight.assignedUserId
+    ? String(flight.assignedUserId) === String(user?.id)
+    : flight.assignedEmail
+      ? norm(flight.assignedEmail) === norm(user?.email)
+      : pilot?.appUserId
+        ? String(pilot.appUserId) === String(user?.id)
+        : pilot?.email
+          ? norm(pilot.email) === norm(user?.email)
+          : norm(pilot?.name) === norm(user?.name);
   return (
     <div className="assigned-flight-backdrop" role="presentation" onClick={onClose}>
       <section className="assigned-flight-panel" role="dialog" aria-modal="true" aria-labelledby="assigned-flight-title" onClick={(event) => event.stopPropagation()}>
@@ -1556,7 +1560,7 @@ function AssignedFlightDialog({ data, user, flightIds, selectedId, onSelect, onB
           <Info label="Kontaktní osoba" value={plant?.contactPerson || "Neuvedena"} />
           <Info label="Telefon" value={plant?.phone || "Neuveden"} />
           <Info label="Souřadnice FVE" value={plant ? `${Number(plant.lat).toFixed(6)}, ${Number(plant.lng).toFixed(6)}` : "Neuvedeny"} />
-          <Info label="Pilot" value={pilot?.name || "Neuveden"} />
+          <Info label="Pilot" value={flight.assignedName || pilot?.name || "Neuveden"} />
           <Info label="Dron" value={drone?.name || "Neuveden"} />
           <Info label="Účel letu" value={flight.purpose || "Neuveden"} />
           <Info label="Stav letu" value={flight.completedAt ? "Dokončen" : flight.acceptedAt ? "Přijat pilotem" : "Čeká na přijetí"} />
@@ -1759,7 +1763,7 @@ const schemas = {
   ],
   flight: [
     ["date", "Datum", "date"],
-    ["pilotId", "Pilot", "pilot"],
+    ["pilotId", "Vyberte pilota", "pilot"],
     ["droneId", "Dron", "drone"],
     ["battery", "Baterie", "text"],
     ["location", "Lokalita", "text"],
@@ -1859,6 +1863,23 @@ function Editor({
           : { ...f, appUserId: "" },
       );
     },
+    selectFlightUser = (id) => {
+      const selected = directory.find((x) => String(x.id) === String(id));
+      const linkedPilot = selected
+        ? data.pilots.find(
+            (pilot) =>
+              String(pilot.appUserId || "") === String(selected.id) ||
+              (pilot.email && norm(pilot.email) === norm(selected.email)),
+          )
+        : null;
+      setForm((current) => ({
+        ...current,
+        assignedUserId: selected?.id || "",
+        assignedEmail: selected?.email || "",
+        assignedName: selected?.name || "",
+        pilotId: linkedPilot?.id || "",
+      }));
+    },
     submit = (e) => {
       e.preventDefault();
       if (readOnly) return;
@@ -1926,6 +1947,15 @@ function Editor({
                   value={form[n]}
                   update={update}
                   data={data}
+                  directory={directory}
+                  assignedUserId={
+                    form.assignedUserId ||
+                    data.pilots.find(
+                      (pilot) => String(pilot.id) === String(form.pilotId),
+                    )?.appUserId ||
+                    ""
+                  }
+                  onPilotUserChange={selectFlightUser}
                 />
               ))}
               {editor.type === "drone" && (
@@ -1985,15 +2015,15 @@ function Editor({
     </div>
   );
 }
-function Field({ name, label, type, options, value, update, data }) {
+function Field({ name, label, type, options, value, update, data, directory = [], assignedUserId = "", onPilotUserChange }) {
   if (type === "textarea")
     return (
       <label className="field full">
         <span>{label}</span>
         <textarea
           name={name}
-          value={value || ""}
-          onChange={(e) => update(name, e.target.value)}
+          value={assignedUserId}
+          onChange={(e) => onPilotUserChange?.(e.target.value)}
         />
       </label>
     );
@@ -2022,9 +2052,9 @@ function Field({ name, label, type, options, value, update, data }) {
           onChange={(e) => update(name, e.target.value)}
         >
           <option value="">Vyber pilota</option>
-          {data.pilots.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
+          {directory.map((account) => (
+            <option key={account.id} value={account.id}>
+              {account.name || account.email}
             </option>
           ))}
         </select>
