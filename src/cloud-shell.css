@@ -16,3 +16,12 @@
 @media(max-width:560px){.cloud-status{top:calc(env(safe-area-inset-top) + 22px);right:76px;max-width:74px;padding:0 9px;font-size:0}.cloud-status::after{content:'Online';font-size:.62rem}.user-chip{top:calc(env(safe-area-inset-top) + 20px);right:154px;width:38px;height:38px;border-radius:12px}.user-chip>span{width:30px;height:30px;border-radius:9px}.profile-menu{top:calc(env(safe-area-inset-top) + 64px);right:12px}.chat-fab{bottom:calc(86px + env(safe-area-inset-bottom))}}
 .auth-help{margin:-4px 0 16px;color:#91a7c7;line-height:1.5}
 
+/* Separate public and direct chat conversations */
+.chat-panel{grid-template-rows:auto auto minmax(0,1fr) auto}
+.chat-recipient{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.08);background:#0b1726}
+.chat-recipient span{color:#8fa2bd;font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em}
+.chat-recipient select{min-width:0;width:100%;padding:10px 12px;border:1px solid rgba(255,255,255,.12);border-radius:12px;background:#07111f;color:#f5f8ff;font-size:16px}
+.chat-messages article.mine{align-self:flex-end;border-color:rgba(57,209,125,.25);background:rgba(57,209,125,.1)}
+.chat-messages article.mine strong{color:#72e7a8}
+.chat-empty{margin:auto;padding:28px 18px;color:#8fa2bd;text-align:center}
+
