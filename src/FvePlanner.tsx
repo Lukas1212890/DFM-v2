@@ -472,10 +472,9 @@ export default function FvePlanner({ plants: externalPlants = [], onChange, onCr
     }
   }
 
-  function toggleRoutePanel() {
-    const opening = !routeOpen;
-    setRouteOpen(opening);
-    if (opening && !routeStart.trim()) useCurrentLocation();
+  function openRouteDialog() {
+    setRouteOpen(true);
+    if (!routeStart.trim()) useCurrentLocation();
   }
 
   function useCurrentLocation() {
@@ -562,29 +561,6 @@ export default function FvePlanner({ plants: externalPlants = [], onChange, onCr
             ))}
           </div>
 
-          <div className={`route-panel ${routeOpen ? "open" : ""}`}>
-            <button className="route-toggle" onClick={toggleRoutePanel} aria-expanded={routeOpen}>
-              <span><strong>{selected.length}</strong> vybráno do trasy</span><b>{routeOpen ? "⌄" : "⌃"}</b>
-            </button>
-            {routeOpen && (
-              <div className="route-options">
-                <label>
-                  Místo odjezdu
-                  <div className="start-row">
-                    <input value={routeStart} onChange={(event) => setRouteStart(event.target.value)} placeholder="49.1951, 16.6068" aria-label="GPS místa odjezdu" />
-                    <button type="button" onClick={useCurrentLocation} title="Použít aktuální polohu" aria-label="Použít aktuální polohu">◎</button>
-                  </div>
-                  <small>Zadej GPS souřadnice nebo použij aktuální polohu.</small>
-                </label>
-                <label className="return-check">
-                  <input type="checkbox" checked={returnToStart} onChange={(event) => setReturnToStart(event.target.checked)} />
-                  Vrátit se do místa odjezdu
-                </label>
-                <p className="route-hint">FVE označuj postupně v pořadí, v jakém je chceš projet. Čísla u bodů ukazují pořadí zastávek.</p>
-                <button className="mapy-button" onClick={openRoute} disabled={!selected.length}>Naplánovat přes Mapy.com ↗</button>
-              </div>
-            )}
-          </div>
         </aside>
 
         <section className="map-wrap">
@@ -603,6 +579,12 @@ export default function FvePlanner({ plants: externalPlants = [], onChange, onCr
         </section>
       </section>
 
+      {selected.length > 0 && (
+        <button type="button" className="fve-route-fab" onClick={openRouteDialog} aria-label={`Naplánovat trasu přes ${selected.length} FVE`}>
+          <span>↗</span> Trasa <b>{selected.length}</b>
+        </button>
+      )}
+
       {canEdit && (
         <button
           type="button"
@@ -612,6 +594,33 @@ export default function FvePlanner({ plants: externalPlants = [], onChange, onCr
         >
           +
         </button>
+      )}
+
+      {routeOpen && selected.length > 0 && (
+        <div className="route-modal-backdrop" role="presentation" onClick={() => setRouteOpen(false)}>
+          <section className="route-modal" role="dialog" aria-modal="true" aria-labelledby="route-modal-title" onClick={(event) => event.stopPropagation()}>
+            <header>
+              <div><small>Plánování cesty</small><h2 id="route-modal-title">Trasa přes {selected.length} {selected.length === 1 ? "FVE" : "FVE"}</h2></div>
+              <button type="button" onClick={() => setRouteOpen(false)} aria-label="Zavřít plánování trasy">×</button>
+            </header>
+            <div className="route-options">
+              <label>
+                Místo odjezdu
+                <div className="start-row">
+                  <input value={routeStart} onChange={(event) => setRouteStart(event.target.value)} placeholder="49.1951, 16.6068" aria-label="GPS místa odjezdu" />
+                  <button type="button" onClick={useCurrentLocation} title="Použít aktuální polohu" aria-label="Použít aktuální polohu">◎</button>
+                </div>
+                <small>Zadej GPS souřadnice nebo použij aktuální polohu.</small>
+              </label>
+              <label className="return-check">
+                <input type="checkbox" checked={returnToStart} onChange={(event) => setReturnToStart(event.target.checked)} />
+                Vrátit se do místa odjezdu
+              </label>
+              <p className="route-hint">FVE jsou v trase seřazené podle pořadí, ve kterém jste je označili.</p>
+              <button className="mapy-button" onClick={openRoute}>Naplánovat přes Mapy.com ↗</button>
+            </div>
+          </section>
+        </div>
       )}
 
       {detailPlant && (
