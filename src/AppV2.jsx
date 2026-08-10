@@ -95,6 +95,7 @@ function findDirectoryUser(value) {
 }
 
 function AppV2({ permissions = {}, user = null }) {
+  const canAccessPlanner = Boolean(permissions.manageUsers);
   const [data, setData] = useState(loadData),
     [view, setView] = useState("dashboard"),
     [selectedDroneId, setSelectedDroneId] = useState(null),
@@ -270,6 +271,7 @@ function AppV2({ permissions = {}, user = null }) {
     todayFlights = data.flights.filter((f) => f.date === today),
     todayTasks = data.tasks.filter((t) => t.dueDate === today && !isDone(t));
   const nav = (next) => {
+    if (next === "fve" && !canAccessPlanner) next = "dashboard";
     setView(next);
     setSelectedDroneId(null);
     setSelectedOffice(null);
@@ -651,7 +653,7 @@ function AppV2({ permissions = {}, user = null }) {
         canEditType={canEditType}
       />
     ) : view === "fve" ? (
-      <FvePlanner
+      canAccessPlanner ? <FvePlanner
         plants={data.plants || []}
         canEdit={Boolean(permissions.editFlights || permissions.editDrones)}
         onChange={savePlants}
@@ -674,7 +676,7 @@ function AppV2({ permissions = {}, user = null }) {
             },
           });
         }}
-      />
+      /> : renderDashboard()
     ) : (
       renderCollection(view)
     );
@@ -758,14 +760,14 @@ function AppV2({ permissions = {}, user = null }) {
             <div className="more-menu-handle" />
             <p className="eyebrow">Další moduly</p>
             <div className="more-menu-grid">
-              <button onClick={() => nav("fve")}>
+              {canAccessPlanner && <button onClick={() => nav("fve")}>
                 <span>☀️</span>
                 <div>
                   <strong>Plánovač FVE</strong>
                   <small>Zakázky, mapa, trasy a plánování letů</small>
                 </div>
                 <b>›</b>
-              </button>
+              </button>}
               <button onClick={() => nav("pilots")}>
                 <span>👤</span>
                 <div>
@@ -782,7 +784,7 @@ function AppV2({ permissions = {}, user = null }) {
                 </div>
                 <b>›</b>
               </button>
-              <button onClick={() => nav("drones")}>
+              <button className="more-menu-hidden" onClick={() => nav("drones")}>
                 <span>🔧</span>
                 <div>
                   <strong>Servis</strong>
@@ -790,7 +792,7 @@ function AppV2({ permissions = {}, user = null }) {
                 </div>
                 <b>›</b>
               </button>
-              <button onClick={() => nav("drones")}>
+              <button className="more-menu-hidden" onClick={() => nav("drones")}>
                 <span>⚠️</span>
                 <div>
                   <strong>Reklamace</strong>
@@ -798,7 +800,7 @@ function AppV2({ permissions = {}, user = null }) {
                 </div>
                 <b>›</b>
               </button>
-              <button onClick={() => nav("drones")}>
+              <button className="more-menu-hidden" onClick={() => nav("drones")}>
                 <span>🚨</span>
                 <div>
                   <strong>Nehody</strong>
