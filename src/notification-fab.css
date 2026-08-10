@@ -24,6 +24,10 @@
   display: none;
 }
 
+.notification-bell[hidden] {
+  display: none;
+}
+
 body:has(.notification-bell) .fab {
   bottom: calc(var(--nav-h) + 82px + env(safe-area-inset-bottom));
 }
