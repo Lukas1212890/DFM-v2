@@ -35,7 +35,7 @@ function openCenter(){
 
 function updateNotificationBell(){
   if(!ncUser)return;let bell=document.querySelector('.notification-bell');if(!bell){bell=document.createElement('button');bell.type='button';bell.className='notification-bell';bell.setAttribute('aria-label','Otevřít centrum upozornění');bell.innerHTML='<span>🔔</span><b></b>';bell.addEventListener('click',openCenter);document.body.appendChild(bell);}
-  const read=readKeys(),count=collectNotifications().filter(item=>!read.has(item.key)).length,badge=bell.querySelector('b'),label=count>99?'99+':String(count);if(badge.textContent!==label)badge.textContent=label;if(badge.hidden!==(count===0))badge.hidden=count===0;if(ncOpen)document.querySelector('.notification-center-list')||closeCenter();
+  const read=readKeys(),count=collectNotifications().filter(item=>!read.has(item.key)).length,badge=bell.querySelector('b'),label=count>99?'99+':String(count);if(badge.textContent!==label)badge.textContent=label;if(badge.hidden!==(count===0))badge.hidden=count===0;if(bell.hidden!==(count===0))bell.hidden=count===0;if(ncOpen)document.querySelector('.notification-center-list')||closeCenter();
 }
 function scheduleNc(){clearTimeout(ncTimer);ncTimer=setTimeout(updateNotificationBell,120)}
 const ncObserver=new MutationObserver(scheduleNc);async function startNc(){ncObserver.observe(document.body,{childList:true,subtree:true});await loadNcUser();addEventListener('storage',scheduleNc);addEventListener('dfm:data-updated',scheduleNc);addEventListener('dfm:chat-changed',scheduleNc);document.addEventListener('click',scheduleNc,true);scheduleNc();}
