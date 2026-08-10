@@ -1,0 +1,39 @@
+.notification-bell {
+  position: fixed;
+  right: max(18px, calc((100vw - 780px) / 2 + 18px));
+  bottom: calc(88px + env(safe-area-inset-bottom));
+  z-index: 56;
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  border: 0;
+  border-radius: 50%;
+  background: linear-gradient(145deg, var(--theme-accent, #2d8cff), #1658ba);
+  color: #fff;
+  box-shadow: 0 12px 28px rgba(45, 140, 255, .35);
+}
+
+.notification-bell > span {
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+body:has(.notification-bell) .fab {
+  bottom: calc(var(--nav-h) + 82px + env(safe-area-inset-bottom));
+}
+
+body:has(.notification-bell) .calendar-fab {
+  bottom: calc(164px + env(safe-area-inset-bottom));
+}
+
+body:has(.notification-bell) .calendar-create-menu {
+  bottom: calc(232px + env(safe-area-inset-bottom));
+}
+
+@media (max-width: 560px) {
+  .notification-bell {
+    bottom: calc(86px + env(safe-area-inset-bottom));
+  }
+}
