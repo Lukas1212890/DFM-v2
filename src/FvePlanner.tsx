@@ -239,6 +239,15 @@ export default function FvePlanner({ plants: externalPlants = [], onChange, onCr
   const detailPlant = detailPlantId ? plants.find((plant) => plant.id === detailPlantId) ?? null : null;
 
   useEffect(() => {
+    if (!detailPlant || parseCoordinates(routeStart) || !navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => setRouteStart(`${coords.latitude.toFixed(6)}, ${coords.longitude.toFixed(6)}`),
+      () => undefined,
+      { enableHighAccuracy: true, timeout: 10000 },
+    );
+  }, [detailPlant, routeStart]);
+
+  useEffect(() => {
     if (!mapReady || !leafletRef.current || !layerRef.current) return;
     const L = leafletRef.current;
     layerRef.current.clearLayers();
@@ -493,6 +502,29 @@ export default function FvePlanner({ plants: externalPlants = [], onChange, onCr
     }
   }
 
+  function openDetailRoute(plant: Plant) {
+    const start = parseCoordinates(routeStart);
+    if (!start) {
+      useCurrentLocation();
+      setMessage("Připravuji aktuální polohu. Potom klepni na navigaci znovu.");
+      window.setTimeout(() => setMessage(""), 2800);
+      return;
+    }
+    const url = new URL("https://mapy.com/fnc/v1/route");
+    url.searchParams.set("mapset", "traffic");
+    url.searchParams.set("start", `${start.lng},${start.lat}`);
+    url.searchParams.set("end", `${plant.lng},${plant.lat}`);
+    url.searchParams.set("routeType", "car_fast_traffic");
+    const isIPhone =
+      /iPhone|iPod/i.test(navigator.userAgent) ||
+      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    if (isIPhone) {
+      window.location.assign(url.toString());
+      return;
+    }
+    window.open(url.toString(), "_blank", "noopener,noreferrer");
+  }
+
   function openRouteDialog() {
     setRouteOpen(true);
     if (!routeStart.trim()) useCurrentLocation();
@@ -699,7 +731,7 @@ export default function FvePlanner({ plants: externalPlants = [], onChange, onCr
                 {onCreateFlight && <button type="button" className="detail-dfm-flight" onClick={() => onCreateFlight(detailPlant)}>Naplánovat let v DFM</button>}
                 <button type="button" onClick={() => openDroneMap(detailPlant)}>Zkopírovat GPS a otevřít DroneMap ↗</button>
                 <a target="_blank" rel="noreferrer" href={`https://earth.google.com/web/search/${detailPlant.lat},${detailPlant.lng}`}>🌍 {detailPlant.lat.toFixed(6)}, {detailPlant.lng.toFixed(6)} · Google Earth ↗</a>
-                <a target="_blank" rel="noreferrer" href={`https://mapy.com/fnc/v1/route?mapset=traffic&end=${detailPlant.lng},${detailPlant.lat}&routeType=car_fast_traffic&navigate=true`}>Navigovat přes Mapy.com →</a>
+                <button type="button" className="detail-mapy-route" onClick={() => openDetailRoute(detailPlant)}>Navigovat přes Mapy.com →</button>
               </div>
             </div>
           </section>
