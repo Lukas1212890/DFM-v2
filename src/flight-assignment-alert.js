@@ -16,7 +16,7 @@ function prepareFlightAlert(box){
   box.addEventListener('pointermove',event=>{if(!dragging)return;const dx=event.clientX-startX,dy=event.clientY-startY;if(Math.abs(dy)>Math.abs(dx)&&Math.abs(dy)>8){dragging=false;box.classList.remove('dragging');return;}dragX=Math.min(0,dx);if(dragX<0){box.style.transform=`translateX(${dragX}px)`;box.style.opacity=String(Math.max(.25,1-Math.abs(dragX)/220));}});
   const finish=()=>{if(!dragging)return;dragging=false;box.classList.remove('dragging');if(dragX<=-70){box.dataset.swiped='1';dismissFlightAlert(box);return;}box.style.transform='';box.style.opacity='';if(Math.abs(dragX)>8){box.dataset.swiped='1';setTimeout(()=>delete box.dataset.swiped,80);}};
   box.addEventListener('pointerup',finish);box.addEventListener('pointercancel',finish);
-  box.addEventListener('click',event=>{if(box.dataset.swiped==='1'){event.preventDefault();return;}const button=[...document.querySelectorAll('.bottom-nav button')].find(x=>flightNorm(x.textContent)==='🛫lety'||flightNorm(x.textContent).endsWith('lety'));button?.click();});
+  box.addEventListener('click',event=>{if(box.dataset.swiped==='1'){event.preventDefault();return;}let flightIds=[];try{flightIds=JSON.parse(box.dataset.flightIds||'[]')}catch{}window.dispatchEvent(new CustomEvent('dfm:open-assigned-flights',{detail:{flightIds}}));});
 }
 
 async function loadFlightCurrentUser(){
@@ -36,7 +36,7 @@ function renderMyFlights(){
   const first=flights[0],signature=flights.map(f=>`${f.id}:${f.date||''}:${f.location||''}:${f.pilotId||''}:${f.droneId||''}`).join('|');if(localStorage.getItem(hiddenFlightKey())===signature){box?.remove();return;}
   if(!box){box=document.createElement('div');box.className='my-flight-alert';box.setAttribute('role','button');box.tabIndex=0;prepareFlightAlert(box);}
   const taskAlert=main.querySelector(':scope > .my-task-alert'),anchor=taskAlert||welcome;if(anchor.nextElementSibling!==box)anchor.insertAdjacentElement('afterend',box);
-  if(box.dataset.signature===signature)return;box.dataset.signature=signature;
+  box.dataset.flightIds=JSON.stringify(flights.map(f=>f.id));if(box.dataset.signature===signature)return;box.dataset.signature=signature;
   box.innerHTML=`<span class="my-flight-alert-icon">🛫</span><div><small>Máte naplánované lety</small><strong>${flights.length} ${flights.length===1?'nadcházející let':'nadcházející lety'}</strong><em>${first.date||'Bez data'} · ${first.location||'Lokalita neuvedena'}${flights.length>1?` · +${flights.length-1} další`:''}</em></div><b>›</b>`;
 }
 
