@@ -44,6 +44,8 @@ function currentUser(){
   try{directory=JSON.parse(localStorage.getItem(DIRECTORY_KEY)||'[]')}catch{}
   return directory.find(x=>norm(x.name)===norm(name))||{name};
 }
+const taskHiddenKey=me=>`dfm_hidden_task_alert:${me.id||norm(me.email||me.name)||'unknown'}`;
+function prepareTaskSwipe(box){let startX=0,startY=0,dx=0,active=false;box.addEventListener('pointerdown',event=>{if(!matchMedia('(pointer: coarse)').matches)return;startX=event.clientX;startY=event.clientY;dx=0;active=true;box.classList.add('dragging')});box.addEventListener('pointermove',event=>{if(!active)return;const moveX=event.clientX-startX,moveY=event.clientY-startY;if(Math.abs(moveY)>Math.abs(moveX)&&Math.abs(moveY)>8){active=false;box.classList.remove('dragging');return;}dx=Math.min(0,moveX);box.style.transform=`translateX(${dx}px)`;box.style.opacity=String(Math.max(.25,1-Math.abs(dx)/220))});const finish=()=>{if(!active)return;active=false;box.classList.remove('dragging');if(dx<=-70){localStorage.setItem(box.dataset.hiddenKey,box.dataset.signature||'');box.dataset.swiped='1';box.classList.add('dismissing');setTimeout(()=>box.remove(),260);return;}box.style.transform='';box.style.opacity='';if(Math.abs(dx)>8){box.dataset.swiped='1';setTimeout(()=>delete box.dataset.swiped,80)}};box.addEventListener('pointerup',finish);box.addEventListener('pointercancel',finish)}
 
 function setReactValue(control,value){
   const proto=control instanceof HTMLSelectElement?HTMLSelectElement.prototype:control instanceof HTMLTextAreaElement?HTMLTextAreaElement.prototype:HTMLInputElement.prototype;
@@ -193,18 +195,20 @@ function renderMyTasks(){
   });
   let box=main.querySelector('.my-task-alert');
   if(!tasks.length){box?.remove();return;}
+  const first=tasks[0],signature=tasks.map(task=>`${task.id||taskTitle(task)}:${task.dueDate||''}:${task.assignedUserId||task.assignedEmail||task.assignedTo||''}`).join('|'),hiddenKey=taskHiddenKey(me);if(localStorage.getItem(hiddenKey)===signature){box?.remove();return;}
   if(!box){
     box=document.createElement('button');
     box.type='button';
     box.className='my-task-alert';
+    prepareTaskSwipe(box);
     main.querySelector('.dashboard-welcome')?.insertAdjacentElement('afterend',box);
     box.addEventListener('click',()=>{
+      if(box.dataset.swiped==='1')return;
       const button=[...document.querySelectorAll('.dashboard-button,.attention-button')].find(x=>norm(x.textContent).includes('otevřené úkoly')||norm(x.textContent).includes('otevřených úkolů'));
       button?.click();
     });
   }
-  const first=tasks[0];
-  const signature=`${tasks.length}:${first.id||taskTitle(first)}`;
+  box.dataset.hiddenKey=hiddenKey;
   if(box.dataset.signature===signature)return;
   box.dataset.signature=signature;
   box.innerHTML=`<span class="my-task-alert-icon">!</span><div><small>Máte přiřazené úkoly</small><strong>${tasks.length} ${tasks.length===1?'otevřený úkol':'otevřené úkoly'}</strong><em>${taskTitle(first)}${tasks.length>1?` · +${tasks.length-1} další`:''}</em></div><b>›</b>`;
@@ -233,6 +237,7 @@ function start(){
   loadDirectory().finally(scheduleRefresh);
   addEventListener('storage',event=>{if(event.key===STORAGE_KEY)scheduleRefresh()});
   addEventListener('dfm:data-updated',scheduleRefresh);
+  addEventListener('dfm:overview-alert-restored',scheduleRefresh);
   scheduleRefresh();
 }
 
