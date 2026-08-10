@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import FvePlanner from "./FvePlanner";
 
 const STORAGE_KEY = "dfm_react_pwa_v1";
 const DIRECTORY_KEY = "dfm_user_directory";
@@ -14,7 +15,7 @@ const SENSORS = [
   "RTK",
   "Noční vidění",
 ];
-const emptyData = { drones: [], pilots: [], flights: [], tasks: [] };
+const emptyData = { drones: [], pilots: [], flights: [], tasks: [], plants: [] };
 const EVENT_META = {
   flight: { label: "Lety", icon: "🛫" },
   task: { label: "Úkoly", icon: "📋" },
@@ -556,6 +557,31 @@ function AppV2({ permissions = {}, user = null }) {
         onCreate={(type) => setEditor({ type, item: null })}
         canEditType={canEditType}
       />
+    ) : view === "fve" ? (
+      <FvePlanner
+        plants={data.plants || []}
+        canEdit={Boolean(permissions.editFlights || permissions.editDrones)}
+        onChange={(plants) => save({ ...data, plants })}
+        onCreateFlight={(plant) => {
+          setEditor({
+            type: "flight",
+            item: null,
+            initial: {
+              date: plant.date || "",
+              location: plant.name || "",
+              purpose: "Inspekce FVE",
+              notes: [
+                plant.name && `FVE: ${plant.name}`,
+                plant.lat && plant.lng && `GPS: ${plant.lat}, ${plant.lng}`,
+                plant.contactPerson && `Kontakt: ${plant.contactPerson}`,
+                plant.phone && `Telefon: ${plant.phone}`,
+                plant.note,
+              ].filter(Boolean).join("\n"),
+              fvePlantId: plant.id,
+            },
+          });
+        }}
+      />
     ) : (
       renderCollection(view)
     );
@@ -573,7 +599,7 @@ function AppV2({ permissions = {}, user = null }) {
     ["calendar", "🗓️", "Kalendář"],
     ["flights", "🛫", "Lety"],
   ];
-  const moreActive = ["pilots", "tasks"].includes(view);
+  const moreActive = ["pilots", "tasks", "fve"].includes(view);
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -600,7 +626,7 @@ function AppV2({ permissions = {}, user = null }) {
         {content}
       </main>
       {!selectedDrone &&
-        !["dashboard", "calendar"].includes(view) &&
+        !["dashboard", "calendar", "fve"].includes(view) &&
         canEditType(createType) && (
           <button
             className="fab"
@@ -639,6 +665,14 @@ function AppV2({ permissions = {}, user = null }) {
             <div className="more-menu-handle" />
             <p className="eyebrow">Další moduly</p>
             <div className="more-menu-grid">
+              <button onClick={() => nav("fve")}>
+                <span>☀️</span>
+                <div>
+                  <strong>Plánovač FVE</strong>
+                  <small>Zakázky, mapa, trasy a plánování letů</small>
+                </div>
+                <b>›</b>
+              </button>
               <button onClick={() => nav("pilots")}>
                 <span>👤</span>
                 <div>
@@ -1494,6 +1528,8 @@ function Editor({
   const [form, setForm] = useState(
       editor.item
         ? { ...editor.item }
+        : editor.initial
+          ? { ...editor.initial }
         : editor.type === "drone"
           ? { status: "Aktivní", sensors: [] }
           : {},
