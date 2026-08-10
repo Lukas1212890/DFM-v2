@@ -77,6 +77,13 @@ async function sendDueReminders(env){
     catch{continue;}
     await sendToUser(env,user.id,{title:'Úkol je zítra',body:taskTitle(task),tag:`task-reminder-${task.id}`,url:'./#tasks'});
   }
+  const today=new Date().toISOString().slice(0,10),adminRows=await env.DB.prepare('SELECT id,role FROM users WHERE active=1').all(),adminIds=(adminRows.results||[]).filter(user=>rolesOf(user).includes('admin')).map(user=>user.id);
+  for(const pilot of state.pilots||[]){
+    if(!pilot.licenseUntil)continue;
+    const days=Math.round((Date.parse(`${pilot.licenseUntil}T00:00:00Z`)-Date.parse(`${today}T00:00:00Z`))/86400000);if(![30,7,1,0].includes(days))continue;
+    const identity=String(pilot.appUserId||pilot.email||pilot.name||'').trim().toLowerCase(),linked=identity?await env.DB.prepare('SELECT id FROM users WHERE active=1 AND (lower(id)=? OR lower(email)=? OR lower(name)=?)').bind(identity,identity,identity).first():null,recipients=[...new Set([linked?.id,...adminIds].filter(Boolean))];
+    for(const userId of recipients){const key=`license-reminder:${pilot.id}:${pilot.licenseUntil}:${days}:${userId}`;try{await env.DB.prepare('INSERT INTO push_log(id,event_key) VALUES(?,?)').bind(crypto.randomUUID(),key).run();}catch{continue;}const when=days===0?'vyprší dnes':`vyprší za ${days} ${days===1?'den':'dní'}`;await sendToUser(env,userId,{title:'Blíží se konec licence pilota',body:`${pilot.name||'Pilot'} · licence ${when}`,tag:`license-${pilot.id}`,url:'./#pilots'});}
+  }
 }
 
 export default{
