@@ -22,7 +22,7 @@ function collectNotifications(){
   return items;
 }
 
-function navigateTo(item){closeCenter();if(item.section==='chat'){document.querySelector('.chat-fab')?.click();return;}if(item.recordType&&item.recordId){dispatchEvent(new CustomEvent('dfm:open-record',{detail:{type:item.recordType,id:item.recordId,droneId:item.droneId||''}}));return;}}
+function navigateTo(item){closeCenter();if(item.section==='chat'){document.querySelector('.chat-fab')?.click();return;}if(item.recordType==='flight'&&item.recordId){dispatchEvent(new CustomEvent('dfm:open-assigned-flights',{detail:{flightIds:[item.recordId]}}));return;}if(item.recordType&&item.recordId){dispatchEvent(new CustomEvent('dfm:open-record',{detail:{type:item.recordType,id:item.recordId,droneId:item.droneId||''}}));return;}}
 function closeCenter(){document.querySelector('.notification-center-overlay')?.remove();ncOpen=false}
 function openCenter(){
   closeCenter();ncOpen=true;const items=collectNotifications(),read=readKeys();
