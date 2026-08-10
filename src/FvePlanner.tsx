@@ -238,7 +238,6 @@ export default function FvePlanner({ plants: externalPlants = [], onChange, onCr
           <p class="popup-kicker">${escapeHtml(meta.label)}</p>
           <h3>${escapeHtml(plant.name)}</h3>
           ${plant.contactPerson ? `<p><strong>Kontakt:</strong> ${escapeHtml(plant.contactPerson)}</p>` : ""}
-          ${plant.date ? `<p><strong>Termín:</strong> ${escapeHtml(new Date(`${plant.date}T12:00:00`).toLocaleDateString("cs-CZ"))}</p>` : ""}
           ${plant.phone && phoneHref(plant.phone) ? `<a class="phone-link" href="tel:${phoneHref(plant.phone)}">☎ Zavolat · ${escapeHtml(plant.phone)}</a>` : ""}
           <div class="popup-tech-details">
             ${plant.installedPower ? `<p><strong>Instalovaný výkon:</strong> ${escapeHtml(plant.installedPower)}</p>` : ""}
@@ -505,7 +504,7 @@ export default function FvePlanner({ plants: externalPlants = [], onChange, onCr
     <main className="app-shell fve-current-native">
       <header className="topbar">
         <div className="brand">
-          <div className="brand-mark"><img src="./icons/dfm-icon-a.svg" alt="" /></div>
+          <div className="brand-mark"><img src="./icons/fve-planner.svg" alt="" /></div>
           <div><strong>Plánovač inspekcí</strong><span>FVE mapa</span></div>
         </div>
         <div className="header-actions">
@@ -513,8 +512,8 @@ export default function FvePlanner({ plants: externalPlants = [], onChange, onCr
             <i />{syncStatus === "online" ? "Online" : syncStatus === "loading" ? "Připojuji…" : "Offline"}
           </span>
           <button className="button ghost desktop-only" onClick={exportData} disabled={!plants.length}>Export</button>
-          <button className="button ghost desktop-only" onClick={() => fileInput.current?.click()}>Import</button>
-          <button className="button primary" onClick={() => { setEditingId(null); setForm(emptyForm); setFormOpen(true); }}>+ Přidat FVE</button>
+          {canEdit && <button className="button ghost desktop-only" onClick={() => fileInput.current?.click()}>Import</button>}
+          {canEdit && <button className="button primary" onClick={() => { setEditingId(null); setForm(emptyForm); setFormOpen(true); }}>+ Přidat FVE</button>}
           <input ref={fileInput} type="file" accept=".json,application/json" hidden onChange={importData} />
         </div>
       </header>
@@ -569,11 +568,11 @@ export default function FvePlanner({ plants: externalPlants = [], onChange, onCr
                 </button>
                 <button className="plant-main" onClick={() => mapRef.current?.setView([plant.lat, plant.lng], 14)}>
                   <span className="status-dot" style={{ background: statusMeta[plant.status].color }} />
-                  <span><strong>{plant.name}</strong><small>{statusMeta[plant.status].label}{plant.contactPerson ? ` · ${plant.contactPerson}` : ""}{plant.date ? ` · ${new Date(`${plant.date}T12:00:00`).toLocaleDateString("cs-CZ")}` : ""}</small></span>
+                  <span><strong>{plant.name}</strong><small>{statusMeta[plant.status].label}{plant.contactPerson ? ` · ${plant.contactPerson}` : ""}</small></span>
                 </button>
                 <div className="card-actions">
-                  <button onClick={() => editPlant(plant)} aria-label={`Upravit ${plant.name}`}>✎</button>
-                  <button onClick={() => removePlant(plant.id)} aria-label={`Odstranit ${plant.name}`}>×</button>
+                  {canEdit && <button onClick={() => editPlant(plant)} aria-label={`Upravit ${plant.name}`}>✎</button>}
+                  {canEdit && <button onClick={() => removePlant(plant.id)} aria-label={`Odstranit ${plant.name}`}>×</button>}
                 </div>
               </article>
             ))}
