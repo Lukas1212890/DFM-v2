@@ -21,6 +21,8 @@ import './flight-assignment-alert.css';
 import './flight-assignment-alert';
 import './theme-switcher.css';
 import './theme-switcher';
+import './license-expiry-alert.css';
+import './license-expiry-alert';
 import './accident-pilot-select';
 import './sheet-scroll-fix.css';
 import './settings-scroll-fix.css';
