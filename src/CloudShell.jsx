@@ -32,8 +32,8 @@ export default function CloudShell(){
  const[busy,setBusy]=useState(false),[error,setError]=useState(''),[status,setStatus]=useState('Připojuji…');
  const[profileOpen,setProfileOpen]=useState(false),[profileEditOpen,setProfileEditOpen]=useState(false),[profileForm,setProfileForm]=useState({name:'',phone:'',position:'',profileNote:''}),[usersOpen,setUsersOpen]=useState(false),[passwordOpen,setPasswordOpen]=useState(false);
  const[users,setUsers]=useState([]),[newUser,setNewUser]=useState({name:'',email:'',roles:['user']}),[inviteCard,setInviteCard]=useState(null),[adminError,setAdminError]=useState('');
- const[chatOpen,setChatOpen]=useState(false),[messages,setMessages]=useState([]),[message,setMessage]=useState(''),[unreadCount,setUnreadCount]=useState(0),[chatTarget,setChatTarget]=useState('all'),[chatUsers,setChatUsers]=useState([]);
- const lastRemote=useRef(''),syncing=useRef(false),saveTimer=useRef(null),autoInviteDone=useRef(false),chatOpenRef=useRef(false);
+ const[chatOpen,setChatOpen]=useState(false),[messages,setMessages]=useState([]),[message,setMessage]=useState(''),[unreadCount,setUnreadCount]=useState(0),[unreadByTarget,setUnreadByTarget]=useState({}),[chatTarget,setChatTarget]=useState('all'),[chatUsers,setChatUsers]=useState([]);
+ const lastRemote=useRef(''),syncing=useRef(false),saveTimer=useRef(null),autoInviteDone=useRef(false),chatOpenRef=useRef(false),chatTargetRef=useRef('all');
  const request=async(path,options={},needsAuth=true)=>{const headers={'content-type':'application/json',...(needsAuth&&token?{authorization:`Bearer ${token}`}:{})};const response=await fetch(`${API}${path}`,{...options,headers:{...headers,...(options.headers||{})}});let payload={};try{payload=await response.json();}catch{}if(!response.ok){const e=new Error(payload.error||`Cloud odpověděl ${response.status}`);e.status=response.status;throw e;}return payload;};
  const applySession=r=>{localStorage.setItem(SESSION_KEY,r.token);setToken(r.token);setUser(r.user);setAuth('ready');setStatus('Online');history.replaceState(null,'',location.pathname+location.search);setTimeout(()=>location.reload(),80);};
  const clearSession=()=>{localStorage.removeItem(SESSION_KEY);setToken('');setUser(null);setAuth('login');setCode('');setPassword('');};
@@ -68,6 +68,9 @@ export default function CloudShell(){
  const chatStorageKey=user?.id?`${CHAT_STATE_KEY}:${user.id}`:'';
  const readChatState=()=>{if(!chatStorageKey)return null;try{return JSON.parse(localStorage.getItem(chatStorageKey)||'null');}catch{return null;}};
  const writeChatState=(knownIds,unreadIds)=>{if(!chatStorageKey)return;localStorage.setItem(chatStorageKey,JSON.stringify({knownIds:knownIds.slice(-100),unreadIds:unreadIds.slice(-100)}));};
+ const chatConversationKey=item=>!item.recipient_id?'all':String(item.sender_id)===String(user?.id)?String(item.recipient_id):String(item.sender_id);
+ const updateUnreadSummary=(unreadIds,sourceMessages=messages)=>{const unreadSet=new Set(unreadIds.map(String)),counts={};sourceMessages.forEach(item=>{if(!unreadSet.has(String(item.id)))return;const key=chatConversationKey(item);counts[key]=(counts[key]||0)+1;});setUnreadCount(unreadIds.length);setUnreadByTarget(counts);};
+ const markConversationRead=(target,sourceMessages=messages)=>{const stored=readChatState()||{},ids=sourceMessages.map(x=>x.id),unread=(Array.isArray(stored.unreadIds)?stored.unreadIds:[]).filter(id=>{const item=sourceMessages.find(message=>String(message.id)===String(id));return item&&chatConversationKey(item)!==String(target);});writeChatState(ids,unread);updateUnreadSummary(unread,sourceMessages);};
  const loadChat=async()=>{if(!navigator.onLine||!token||!chatStorageKey)return;try{
    const nextMessages=(await request('/chat')).messages||[];
    setMessages(nextMessages);
@@ -78,22 +81,22 @@ export default function CloudShell(){
      return;
    }
    const known=new Set(Array.isArray(stored.knownIds)?stored.knownIds:[]);
-   const newIds=ids.filter(id=>!known.has(id));
+   const newIds=nextMessages.filter(item=>!known.has(item.id)&&String(item.sender_id)!==String(user?.id)).map(item=>item.id);
    const previousUnread=(Array.isArray(stored.unreadIds)?stored.unreadIds:[]).filter(id=>ids.includes(id));
-   const unread=chatOpenRef.current?[]:[...new Set([...previousUnread,...newIds])];
+   let unread=[...new Set([...previousUnread,...newIds])];
+   if(chatOpenRef.current)unread=unread.filter(id=>{const item=nextMessages.find(message=>String(message.id)===String(id));return item&&chatConversationKey(item)!==String(chatTargetRef.current);});
    writeChatState(ids,unread);
-   setUnreadCount(unread.length);
+   updateUnreadSummary(unread,nextMessages);
  }catch{}};
  const loadChatUsers=async()=>{try{const r=await request('/users/directory');setChatUsers((r.users||[]).filter(item=>String(item.id)!==String(user?.id)));}catch{setChatUsers([]);}};
  const openChat=()=>{
    chatOpenRef.current=true;
    setChatOpen(true);
-   const ids=messages.map(x=>x.id);
-   writeChatState(ids,[]);
-   setUnreadCount(0);
+   markConversationRead(chatTargetRef.current);
    loadChatUsers();
    loadChat();
  };
+ const changeChatTarget=target=>{chatTargetRef.current=target;setChatTarget(target);markConversationRead(target);};
  const closeChat=()=>{chatOpenRef.current=false;setChatOpen(false);};
  useEffect(()=>{if(auth!=='ready'||!token||!chatStorageKey)return;loadChat();const i=setInterval(loadChat,5000);const refresh=()=>{if(document.visibilityState==='visible')loadChat();};addEventListener('online',loadChat);addEventListener('dfm:chat-changed',loadChat);document.addEventListener('visibilitychange',refresh);return()=>{clearInterval(i);removeEventListener('online',loadChat);removeEventListener('dfm:chat-changed',loadChat);document.removeEventListener('visibilitychange',refresh);};},[auth,token,chatStorageKey]);
  const sendMessage=async e=>{e.preventDefault();if(!navigator.onLine){alert('Chat vyžaduje internet.');return;}await request('/chat',{method:'POST',body:JSON.stringify({message:message.trim(),recipientId:chatTarget==='all'?null:chatTarget})});setMessage('');loadChat();};
@@ -114,6 +117,6 @@ export default function CloudShell(){
  {usersOpen&&<div className="chat-overlay"><section className="users-panel"><header><div><small>Administrace</small><h2>Uživatelé</h2></div><button onClick={()=>setUsersOpen(false)}>×</button></header><div className="users-content"><form className="invite-form" onSubmit={createUser}><h3>Přidat uživatele</h3><input value={newUser.name} onChange={e=>setNewUser({...newUser,name:e.target.value})} placeholder="Jméno" required/><input type="email" value={newUser.email} onChange={e=>setNewUser({...newUser,email:e.target.value})} placeholder="jmeno@dronetech.cz" required/>{rolePicker(newUser.roles,roles=>setNewUser({...newUser,roles}))}<button>Vytvořit pozvánku</button></form>
  {inviteCard&&<div className="link-invite"><h3>{inviteCard.user.name}</h3><span>{inviteCard.user.email}</span><p>QR nebo odkaz slouží k jednorázové aktivaci účtu a nastavení vlastního šestimístného PINu.</p><div className="invite-qr" dangerouslySetInnerHTML={{__html:inviteQr}}/><input readOnly value={currentInviteLink}/><div><button onClick={copyInvite}>Kopírovat odkaz</button><button onClick={shareInvite}>Sdílet pozvánku</button></div></div>}{adminError&&<p className="auth-error">{adminError}</p>}
  <div className="users-list">{users.map(item=><article key={item.id}><input value={item.name} onChange={e=>setUsers(xs=>xs.map(x=>x.id===item.id?{...x,name:e.target.value}:x))}/><span>{item.email}</span><small className={Number(item.sessions||0)>0?'session-on':'session-off'}>{Number(item.sessions||0)>0?`Přihlášen · ${item.sessions} zařízení`:'Odhlášen · 0 zařízení'}{item.invite_ready?' · pozvánka připravena':''}{hasRole(item,'admin')&&item.has_password?' · heslo nastaveno':''}</small>{rolePicker(item.roles,roles=>setUsers(xs=>xs.map(x=>x.id===item.id?{...x,roles}:x)))}<label><input type="checkbox" checked={Boolean(item.active)} onChange={e=>setUsers(xs=>xs.map(x=>x.id===item.id?{...x,active:e.target.checked?1:0}:x))}/> Aktivní</label><div className="user-actions"><button onClick={()=>updateUser(item)}>Uložit</button><button onClick={()=>regenerate(item)}>Nový QR / odkaz</button><button onClick={()=>forceLogout(item)}>Odhlásit zařízení</button><button className="delete-user" onClick={()=>deleteUser(item)}>Smazat uživatele</button></div></article>)}</div></div></section></div>}
- {chatOpen&&<div className="chat-overlay"><section className="chat-panel"><header><div><small>{chatTarget==='all'?'Společná místnost':'Soukromá konverzace'}</small><h2>{chatTarget==='all'?'Všichni uživatelé':chatTargetUser?.name||'DFM Chat'}</h2></div><button onClick={closeChat}>×</button></header><label className="chat-recipient"><span>Komu píšete</span><select value={chatTarget} onChange={e=>setChatTarget(e.target.value)}><option value="all">📣 Všichni uživatelé</option>{chatUsers.map(item=><option key={item.id} value={item.id}>👤 {item.name||item.email}</option>)}</select></label><div className="chat-messages">{visibleChatMessages.map(x=><article key={x.id} data-message-id={x.id} className={String(x.sender_id)===String(user?.id)?'mine':''}><strong>{x.author}</strong><p>{x.message}</p><time>{new Date(x.created_at+'Z').toLocaleString('cs-CZ')}</time></article>)}{!visibleChatMessages.length&&<div className="chat-empty">V této konverzaci zatím nejsou žádné zprávy.</div>}</div><form onSubmit={sendMessage}><textarea value={message} onChange={e=>setMessage(e.target.value)} placeholder={chatTarget==='all'?'Zpráva pro všechny…':`Zpráva pro ${chatTargetUser?.name||'uživatele'}…`} required/><button>Odeslat</button></form></section></div>}</>;
+ {chatOpen&&<div className="chat-overlay"><section className="chat-panel"><header><div><small>{chatTarget==='all'?'Společná místnost':'Soukromá konverzace'}</small><h2>{chatTarget==='all'?'Všichni uživatelé':chatTargetUser?.name||'DFM Chat'}</h2></div><button onClick={closeChat}>×</button></header><label className="chat-recipient"><span>Komu píšete</span><select value={chatTarget} onChange={e=>changeChatTarget(e.target.value)}><option value="all">📣 Všichni uživatelé{unreadByTarget.all?`  🔴 ${unreadByTarget.all}`:''}</option>{chatUsers.map(item=><option key={item.id} value={item.id}>👤 {item.name||item.email}{unreadByTarget[String(item.id)]?`  🔴 ${unreadByTarget[String(item.id)]}`:''}</option>)}</select></label><div className="chat-messages">{visibleChatMessages.map(x=><article key={x.id} data-message-id={x.id} className={String(x.sender_id)===String(user?.id)?'mine':''}><strong>{x.author}</strong><p>{x.message}</p><time>{new Date(x.created_at+'Z').toLocaleString('cs-CZ')}</time></article>)}{!visibleChatMessages.length&&<div className="chat-empty">V této konverzaci zatím nejsou žádné zprávy.</div>}</div><form onSubmit={sendMessage}><textarea value={message} onChange={e=>setMessage(e.target.value)} placeholder={chatTarget==='all'?'Zpráva pro všechny…':`Zpráva pro ${chatTargetUser?.name||'uživatele'}…`} required/><button>Odeslat</button></form></section></div>}</>;
 }
 
