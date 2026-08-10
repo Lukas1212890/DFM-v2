@@ -931,6 +931,9 @@
 
 /* Native DFM integration: the module lives inside DFM's shell and bottom navigation. */
 .fve-current-native.app-shell {
+  position: relative;
+  z-index: 1;
+  isolation: isolate;
   width: 100%;
   max-width: none;
   height: min(720px, calc(100dvh - 178px));
