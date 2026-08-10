@@ -671,7 +671,7 @@
 /* Full-screen FVE detail opened from map markers */
 .fve-current-native .plant-detail-backdrop {
   position: fixed;
-  inset: 0;
+  inset: 74px 0 0;
   z-index: 2600;
   display: grid;
   place-items: center;
@@ -682,7 +682,7 @@
 
 .fve-current-native .plant-detail-modal {
   width: min(620px, 100%);
-  max-height: calc(100dvh - 40px);
+  max-height: calc(100dvh - 114px);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -875,6 +875,10 @@
   background: linear-gradient(135deg, #16a878, #28d49b);
 }
 
+.fve-current-native .detail-link-actions .detail-mapy-route {
+  background: linear-gradient(135deg, #16a878, #28d49b);
+}
+
 @keyframes plant-detail-pop {
   from { opacity: 0; transform: scale(.94) translateY(12px); }
   to { opacity: 1; transform: scale(1) translateY(0); }
@@ -895,7 +899,7 @@
   .fve-current-native .plant-detail-modal {
     width: min(560px, 100%);
     height: min(82dvh, 760px);
-    max-height: calc(100dvh - max(28px, env(safe-area-inset-top) + env(safe-area-inset-bottom)));
+    max-height: calc(100dvh - 74px - max(28px, env(safe-area-inset-top) + env(safe-area-inset-bottom)));
     border: 1px solid #31506d;
     border-radius: 20px;
     animation: plant-detail-pop .2s ease-out;
