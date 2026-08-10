@@ -1,0 +1,18 @@
+.fve-original-theme {
+  --primary: #176b3a;
+  --card: #fff;
+  --line: #dce7e0;
+  --muted: #5b6778;
+  color: #13233d;
+  background: #f4f7f6;
+  border-radius: 24px;
+  padding: 20px 20px 100px;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+.fve-original-theme .eyebrow { color: #176b3a; }
+.fve-original-theme .fve-map-card,
+.fve-original-theme .fve-card,
+.fve-original-theme .fve-stats article { box-shadow: 0 8px 26px rgba(15, 23, 42, .07); }
+@media (max-width: 540px) {
+  .fve-original-theme { margin: -8px; padding: 16px 12px 100px; border-radius: 0; }
+}
