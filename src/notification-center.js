@@ -34,7 +34,7 @@ function openCenter(){
 }
 
 function updateNotificationBell(){
-  const topbar=document.querySelector('.topbar');if(!topbar||!ncUser)return;let bell=topbar.querySelector('.notification-bell');if(!bell){bell=document.createElement('button');bell.type='button';bell.className='icon-button notification-bell';bell.setAttribute('aria-label','Otevřít centrum upozornění');bell.innerHTML='<span>🔔</span><b></b>';bell.addEventListener('click',openCenter);const settings=topbar.querySelector(':scope > .icon-button:not(.notification-bell)');settings?.insertAdjacentElement('beforebegin',bell)||topbar.appendChild(bell);}
+  if(!ncUser)return;let bell=document.querySelector('.notification-bell');if(!bell){bell=document.createElement('button');bell.type='button';bell.className='notification-bell';bell.setAttribute('aria-label','Otevřít centrum upozornění');bell.innerHTML='<span>🔔</span><b></b>';bell.addEventListener('click',openCenter);document.body.appendChild(bell);}
   const read=readKeys(),count=collectNotifications().filter(item=>!read.has(item.key)).length,badge=bell.querySelector('b'),label=count>99?'99+':String(count);if(badge.textContent!==label)badge.textContent=label;if(badge.hidden!==(count===0))badge.hidden=count===0;if(ncOpen)document.querySelector('.notification-center-list')||closeCenter();
 }
 function scheduleNc(){clearTimeout(ncTimer);ncTimer=setTimeout(updateNotificationBell,120)}
