@@ -954,6 +954,83 @@
   z-index: 850;
 }
 
+.fve-current-native .fve-route-fab {
+  position: fixed;
+  right: max(18px, calc((100vw - 780px) / 2 + 18px));
+  bottom: calc(var(--nav-h) + 86px + env(safe-area-inset-bottom));
+  z-index: 850;
+  min-height: 48px;
+  padding: 0 15px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(79, 168, 255, .45);
+  border-radius: 999px;
+  background: linear-gradient(145deg, #2489e8, #1766bd);
+  color: #fff;
+  box-shadow: 0 12px 28px rgba(24, 111, 196, .38);
+  font-weight: 850;
+}
+
+.fve-current-native .fve-route-fab span { font-size: 18px; }
+.fve-current-native .fve-route-fab b {
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .2);
+  font-size: 11px;
+}
+
+.fve-current-native .route-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2400;
+  display: grid;
+  place-items: center;
+  padding: 14px;
+  background: rgba(2, 8, 17, .76);
+  backdrop-filter: blur(7px);
+}
+
+.fve-current-native .route-modal {
+  width: min(500px, 100%);
+  overflow: hidden;
+  border: 1px solid #294157;
+  border-radius: 22px;
+  background: #091827;
+  color: #fff;
+  box-shadow: 0 26px 80px rgba(0, 0, 0, .55);
+}
+
+.fve-current-native .route-modal > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 17px 18px;
+  border-bottom: 1px solid #20364c;
+}
+
+.fve-current-native .route-modal h2 { margin: 3px 0 0; font-size: 20px; }
+.fve-current-native .route-modal header small { color: #8fa7c0; font-weight: 750; }
+.fve-current-native .route-modal header button {
+  width: 42px;
+  height: 42px;
+  border: 0;
+  border-radius: 13px;
+  background: rgba(255, 255, 255, .07);
+  color: #fff;
+  font-size: 25px;
+}
+
+.fve-current-native .route-modal .route-options {
+  padding: 18px;
+  border-top: 0;
+}
+
 @media (max-width: 780px) {
   .fve-current-native.app-shell {
     width: calc(100% + 28px);
@@ -978,6 +1055,19 @@
   .fve-current-native .plant-list {
     padding-bottom: calc(76px + env(safe-area-inset-bottom));
   }
+
+  .fve-current-native .route-modal-backdrop {
+    align-items: end;
+    padding: 8px 8px 0;
+  }
+
+  .fve-current-native .route-modal {
+    border-radius: 22px 22px 0 0;
+  }
+
+  .fve-current-native .route-modal .route-options {
+    padding-bottom: calc(18px + env(safe-area-inset-bottom));
+  }
 }
 
 @media (max-width: 780px) and (pointer: coarse) {
@@ -995,7 +1085,4 @@
     grid-template-rows: minmax(135px, 24%) minmax(0, 76%);
   }
 
-  .fve-current-native .route-panel.open {
-    bottom: calc(var(--nav-h) + env(safe-area-inset-bottom));
-  }
 }
