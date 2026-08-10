@@ -46,6 +46,15 @@ html[data-dfm-theme] .calendar-fab {
   bottom: calc(var(--nav-h) + 84px + env(safe-area-inset-bottom));
 }
 
+.notification-item.read {
+  opacity: .48;
+  filter: saturate(.45);
+}
+
+.notification-item.read strong {
+  font-weight: 650;
+}
+
 @media (max-width: 560px) {
   .notification-bell {
     bottom: calc(150px + env(safe-area-inset-bottom));
