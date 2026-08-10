@@ -198,6 +198,23 @@ function AppV2({ permissions = {}, user = null }) {
       return next;
     });
   }, []);
+  const updateAssignedFlightProgress = (flightId, stage) => {
+    const next = structuredClone(data);
+    const flight = next.flights.find((item) => String(item.id) === String(flightId));
+    if (!flight) return;
+    const changedAt = new Date().toISOString();
+    if (stage === "accepted" && !flight.acceptedAt) {
+      flight.acceptedAt = changedAt;
+      flight.acceptedByUserId = user?.id || "";
+      flight.acceptedByName = user?.name || "Pilot";
+    }
+    if (stage === "completed" && flight.acceptedAt && !flight.completedAt) {
+      flight.completedAt = changedAt;
+      flight.completedByUserId = user?.id || "";
+      flight.completedByName = user?.name || flight.acceptedByName || "Pilot";
+    }
+    save(next);
+  };
   const selectedDrone =
     data.drones.find((d) => d.id === selectedDroneId) || null;
   const batteryCount = data.drones.reduce(
@@ -771,6 +788,7 @@ function AppV2({ permissions = {}, user = null }) {
       {assignedFlightView && (
         <AssignedFlightDialog
           data={data}
+          user={user}
           flightIds={assignedFlightView.flightIds}
           selectedId={assignedFlightView.selectedId}
           onSelect={(selectedId) =>
@@ -780,6 +798,7 @@ function AppV2({ permissions = {}, user = null }) {
             setAssignedFlightView((current) => ({ ...current, selectedId: null }))
           }
           onClose={() => setAssignedFlightView(null)}
+          onStatusChange={updateAssignedFlightProgress}
         />
       )}
       {settingsOpen && (
@@ -1312,7 +1331,7 @@ function CollectionCard({ type, item, data, onClick, editable }) {
   );
 }
 
-function AssignedFlightDialog({ data, flightIds, selectedId, onSelect, onBack, onClose }) {
+function AssignedFlightDialog({ data, user, flightIds, selectedId, onSelect, onBack, onClose, onStatusChange }) {
   const [routeStart, setRouteStart] = useState(null);
   const [routeLocationError, setRouteLocationError] = useState("");
   const flights = flightIds
@@ -1395,6 +1414,11 @@ function AssignedFlightDialog({ data, flightIds, selectedId, onSelect, onBack, o
   const plant = data.plants.find((entry) => String(entry.id) === String(flight.fvePlantId));
   const pilot = data.pilots.find((entry) => String(entry.id) === String(flight.pilotId));
   const drone = data.drones.find((entry) => String(entry.id) === String(flight.droneId));
+  const isCurrentPilot = pilot?.appUserId
+    ? String(pilot.appUserId) === String(user?.id)
+    : pilot?.email
+      ? norm(pilot.email) === norm(user?.email)
+      : norm(pilot?.name) === norm(user?.name);
   return (
     <div className="assigned-flight-backdrop" role="presentation" onClick={onClose}>
       <section className="assigned-flight-panel" role="dialog" aria-modal="true" aria-labelledby="assigned-flight-title" onClick={(event) => event.stopPropagation()}>
@@ -1410,12 +1434,20 @@ function AssignedFlightDialog({ data, flightIds, selectedId, onSelect, onBack, o
           <Info label="Pilot" value={pilot?.name || "Neuveden"} />
           <Info label="Dron" value={drone?.name || "Neuveden"} />
           <Info label="Účel letu" value={flight.purpose || "Neuveden"} />
+          <Info label="Stav letu" value={flight.completedAt ? "Dokončen" : flight.acceptedAt ? "Přijat pilotem" : "Čeká na přijetí"} />
         </div>
         {plant?.phone && <a className="assigned-flight-call" href={`tel:${String(plant.phone).replace(/[^+\d]/g, "")}`}>☎ Zavolat kontaktu · {plant.phone}</a>}
         <button type="button" className="assigned-flight-route" onClick={() => navigateToFlight(plant)}>
           {routeStart ? "Naplánovat trasu z aktuální polohy ↗" : "Připravit aktuální polohu…"}
         </button>
         {routeLocationError && <p className="assigned-flight-route-error">{routeLocationError}</p>}
+        {isCurrentPilot && !flight.acceptedAt && (
+          <button type="button" className="assigned-flight-accept" onClick={() => onStatusChange(flight.id, "accepted")}>✓ Přijmout let</button>
+        )}
+        {isCurrentPilot && flight.acceptedAt && !flight.completedAt && (
+          <button type="button" className="assigned-flight-complete" onClick={() => onStatusChange(flight.id, "completed")}>✓ Let je hotový</button>
+        )}
+        {flight.completedAt && <p className="assigned-flight-completed-note">Let dokončil {flight.completedByName || flight.acceptedByName || "pilot"}.</p>}
         {flights.length > 1 && <button type="button" className="assigned-flight-back" onClick={onBack}>‹ Vybrat jiný let</button>}
       </section>
     </div>
