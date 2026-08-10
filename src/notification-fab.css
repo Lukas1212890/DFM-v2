@@ -1,7 +1,7 @@
 .notification-bell {
   position: fixed;
-  right: max(18px, calc((100vw - 780px) / 2 + 18px));
-  bottom: calc(88px + env(safe-area-inset-bottom));
+  left: max(18px, calc((100vw - 780px) / 2 + 18px));
+  bottom: calc(152px + env(safe-area-inset-bottom));
   z-index: 56;
   width: 52px;
   height: 52px;
@@ -28,20 +28,14 @@
   display: none;
 }
 
-body:has(.notification-bell) .fab {
-  bottom: calc(var(--nav-h) + 82px + env(safe-area-inset-bottom));
-}
-
-body:has(.notification-bell) .calendar-fab {
-  bottom: calc(164px + env(safe-area-inset-bottom));
-}
-
-body:has(.notification-bell) .calendar-create-menu {
-  bottom: calc(232px + env(safe-area-inset-bottom));
+html[data-dfm-theme] .fab {
+  bottom: calc(var(--nav-h) + 16px + env(safe-area-inset-bottom));
+  background: linear-gradient(145deg, #4ae08b, #19a75e);
+  box-shadow: 0 12px 28px rgba(57, 209, 125, .35);
 }
 
 @media (max-width: 560px) {
   .notification-bell {
-    bottom: calc(86px + env(safe-area-inset-bottom));
+    bottom: calc(150px + env(safe-area-inset-bottom));
   }
 }
