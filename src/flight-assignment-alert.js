@@ -31,9 +31,9 @@ function renderMyFlights(){
   let data={pilots:[],flights:[]};try{data=JSON.parse(localStorage.getItem(FLIGHT_DATA_KEY)||'{}')}catch{}
   const me=flightCurrentUser;if(!me)return;
   const pilotIds=(data.pilots||[]).filter(p=>p.appUserId?String(p.appUserId)===String(me.id):p.email?flightNorm(p.email)===flightNorm(me.email):flightNorm(p.name)===flightNorm(me.name)).map(p=>p.id);
-  const flights=(data.flights||[]).filter(f=>pilotIds.includes(f.pilotId)&&!f.completedAt&&(!f.date||f.date>=flightToday())).sort((a,b)=>String(a.date||'9999').localeCompare(String(b.date||'9999')));
+  const flights=(data.flights||[]).filter(f=>(f.assignedUserId?String(f.assignedUserId)===String(me.id):f.assignedEmail?flightNorm(f.assignedEmail)===flightNorm(me.email):pilotIds.includes(f.pilotId))&&!f.completedAt&&(!f.date||f.date>=flightToday())).sort((a,b)=>String(a.date||'9999').localeCompare(String(b.date||'9999')));
   let box=main.querySelector(':scope > .my-flight-alert');if(!flights.length){box?.remove();return;}
-  const first=flights[0],signature=flights.map(f=>`${f.id}:${f.date||''}:${f.location||''}:${f.pilotId||''}:${f.droneId||''}`).join('|');if(localStorage.getItem(hiddenFlightKey())===signature){box?.remove();return;}
+  const first=flights[0],signature=flights.map(f=>`${f.id}:${f.date||''}:${f.location||''}:${f.assignedUserId||f.pilotId||''}:${f.droneId||''}`).join('|');if(localStorage.getItem(hiddenFlightKey())===signature){box?.remove();return;}
   if(!box){box=document.createElement('div');box.className='my-flight-alert';box.setAttribute('role','button');box.tabIndex=0;prepareFlightAlert(box);}
   const taskAlert=main.querySelector(':scope > .my-task-alert'),anchor=taskAlert||welcome;if(anchor.nextElementSibling!==box)anchor.insertAdjacentElement('afterend',box);
   box.dataset.flightIds=JSON.stringify(flights.map(f=>f.id));if(box.dataset.signature===signature)return;box.dataset.signature=signature;
