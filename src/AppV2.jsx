@@ -1313,38 +1313,60 @@ function CollectionCard({ type, item, data, onClick, editable }) {
 }
 
 function AssignedFlightDialog({ data, flightIds, selectedId, onSelect, onBack, onClose }) {
+  const [routeStart, setRouteStart] = useState(null);
+  const [routeLocationError, setRouteLocationError] = useState("");
   const flights = flightIds
     .map((id) => data.flights.find((flight) => String(flight.id) === String(id)))
     .filter(Boolean);
   const flight = selectedId
     ? flights.find((item) => String(item.id) === String(selectedId))
     : null;
+
+  useEffect(() => {
+    if (!flight || routeStart || !navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        setRouteStart({ lat: coords.latitude, lng: coords.longitude });
+        setRouteLocationError("");
+      },
+      () => setRouteLocationError("Povolte přístup k poloze a potom klepněte na tlačítko znovu."),
+      { enableHighAccuracy: true, timeout: 10000 },
+    );
+  }, [flight, routeStart]);
+
   const navigateToFlight = (plant) => {
     if (!plant || !Number.isFinite(Number(plant.lat)) || !Number.isFinite(Number(plant.lng))) {
       alert("U tohoto letu nejsou uložené platné souřadnice FVE.");
       return;
     }
-    if (!navigator.geolocation) {
-      alert("Tento telefon neumí zjistit aktuální polohu.");
+    if (!routeStart) {
+      if (!navigator.geolocation) {
+        alert("Tento telefon neumí zjistit aktuální polohu.");
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        ({ coords }) => {
+          setRouteStart({ lat: coords.latitude, lng: coords.longitude });
+          setRouteLocationError("");
+        },
+        () => setRouteLocationError("Povolte aplikaci přístup k poloze a potom klepněte na tlačítko znovu."),
+        { enableHighAccuracy: true, timeout: 10000 },
+      );
       return;
     }
-    navigator.geolocation.getCurrentPosition(
-      ({ coords }) => {
-        const url = new URL("https://mapy.com/fnc/v1/route");
-        url.searchParams.set("mapset", "traffic");
-        url.searchParams.set("start", `${coords.longitude},${coords.latitude}`);
-        url.searchParams.set("end", `${Number(plant.lng)},${Number(plant.lat)}`);
-        url.searchParams.set("routeType", "car_fast_traffic");
-        const isPhone = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || navigator.maxTouchPoints > 1;
-        if (isPhone) {
-          window.location.assign(url.toString());
-          return;
-        }
-        window.open(url.toString(), "_blank", "noopener,noreferrer");
-      },
-      () => alert("Aktuální polohu se nepodařilo získat. Povolte aplikaci přístup k poloze."),
-      { enableHighAccuracy: true, timeout: 10000 },
-    );
+    const url = new URL("https://mapy.com/fnc/v1/route");
+    url.searchParams.set("mapset", "traffic");
+    url.searchParams.set("start", `${routeStart.lng},${routeStart.lat}`);
+    url.searchParams.set("end", `${Number(plant.lng)},${Number(plant.lat)}`);
+    url.searchParams.set("routeType", "car_fast_traffic");
+    const isIPhone =
+      /iPhone|iPod/i.test(navigator.userAgent) ||
+      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    if (isIPhone) {
+      window.location.assign(url.toString());
+      return;
+    }
+    window.open(url.toString(), "_blank", "noopener,noreferrer");
   };
 
   if (!flight) {
@@ -1390,7 +1412,10 @@ function AssignedFlightDialog({ data, flightIds, selectedId, onSelect, onBack, o
           <Info label="Účel letu" value={flight.purpose || "Neuveden"} />
         </div>
         {plant?.phone && <a className="assigned-flight-call" href={`tel:${String(plant.phone).replace(/[^+\d]/g, "")}`}>☎ Zavolat kontaktu · {plant.phone}</a>}
-        <button type="button" className="assigned-flight-route" onClick={() => navigateToFlight(plant)}>Naplánovat trasu z aktuální polohy ↗</button>
+        <button type="button" className="assigned-flight-route" onClick={() => navigateToFlight(plant)}>
+          {routeStart ? "Naplánovat trasu z aktuální polohy ↗" : "Připravit aktuální polohu…"}
+        </button>
+        {routeLocationError && <p className="assigned-flight-route-error">{routeLocationError}</p>}
         {flights.length > 1 && <button type="button" className="assigned-flight-back" onClick={onBack}>‹ Vybrat jiný let</button>}
       </section>
     </div>
