@@ -6,6 +6,7 @@ const DIRECTORY_KEY = "dfm_user_directory";
 const SESSION_KEY = "dfm_auth_session";
 const API = "https://dfm-cloud-api.bednarik.workers.dev";
 const VERSION = "1.0 Beta";
+const TASK_TEXT_MARKER = "<<<DFM_TASK_TEXT>>>";
 const uid = () => crypto.randomUUID();
 const SENSORS = [
   "RGB",
@@ -49,6 +50,14 @@ const startOfWeek = (d) => {
 };
 const sameDay = (a, b) => localDate(a) === localDate(b);
 const isDone = (t) => t.done === true || t.done === "Ano";
+const taskContent = (task) => {
+  const raw = String(task?.custom || "");
+  const marker = raw.indexOf(TASK_TEXT_MARKER);
+  return {
+    title: (marker < 0 ? raw : raw.slice(0, marker)).trim() || (task?.type !== "Ostatní" ? task?.type : "") || "Úkol",
+    text: marker < 0 ? String(task?.description || "").trim() : raw.slice(marker + TASK_TEXT_MARKER.length).trim(),
+  };
+};
 const isActiveDroneRecord = (type, item) =>
   type === "claim"
     ? item?.status !== "Vyřízeno"
@@ -93,6 +102,7 @@ function AppV2({ permissions = {}, user = null }) {
     [editor, setEditor] = useState(null),
     [settingsOpen, setSettingsOpen] = useState(false),
     [assignedFlightView, setAssignedFlightView] = useState(null),
+    [assignedTaskView, setAssignedTaskView] = useState(null),
     [moreOpen, setMoreOpen] = useState(false),
     [search, setSearch] = useState(""),
     [sensorFilters, setSensorFilters] = useState([]);
@@ -160,6 +170,21 @@ function AppV2({ permissions = {}, user = null }) {
       removeEventListener("dfm:open-assigned-flights", openAssignedFlights);
   }, [data.flights]);
   useEffect(() => {
+    const openAssignedTasks = (event) => {
+      const requestedIds = Array.isArray(event.detail?.taskIds)
+        ? event.detail.taskIds.map(String)
+        : [];
+      const tasks = data.tasks.filter((task) => requestedIds.includes(String(task.id)));
+      if (!tasks.length) return;
+      setAssignedTaskView({
+        taskIds: tasks.map((task) => task.id),
+        selectedId: tasks.length === 1 ? tasks[0].id : null,
+      });
+    };
+    addEventListener("dfm:open-assigned-tasks", openAssignedTasks);
+    return () => removeEventListener("dfm:open-assigned-tasks", openAssignedTasks);
+  }, [data.tasks]);
+  useEffect(() => {
     const token = localStorage.getItem(SESSION_KEY) || "";
     if (!token) return;
     fetch(`${API}/users/directory`, {
@@ -212,6 +237,24 @@ function AppV2({ permissions = {}, user = null }) {
       flight.completedAt = changedAt;
       flight.completedByUserId = user?.id || "";
       flight.completedByName = user?.name || flight.acceptedByName || "Pilot";
+    }
+    save(next);
+  };
+  const updateAssignedTaskProgress = (taskId, stage) => {
+    const next = structuredClone(data);
+    const task = next.tasks.find((item) => String(item.id) === String(taskId));
+    if (!task) return;
+    const changedAt = new Date().toISOString();
+    if (stage === "accepted" && !task.acceptedAt) {
+      task.acceptedAt = changedAt;
+      task.acceptedByUserId = user?.id || "";
+      task.acceptedByName = user?.name || "Uživatel";
+    }
+    if (stage === "completed" && task.acceptedAt && !task.completedAt) {
+      task.completedAt = changedAt;
+      task.completedByUserId = user?.id || "";
+      task.completedByName = user?.name || task.acceptedByName || "Uživatel";
+      task.done = true;
     }
     save(next);
   };
@@ -801,6 +844,18 @@ function AppV2({ permissions = {}, user = null }) {
           onStatusChange={updateAssignedFlightProgress}
         />
       )}
+      {assignedTaskView && (
+        <AssignedTaskDialog
+          data={data}
+          user={user}
+          taskIds={assignedTaskView.taskIds}
+          selectedId={assignedTaskView.selectedId}
+          onSelect={(selectedId) => setAssignedTaskView((current) => ({ ...current, selectedId }))}
+          onBack={() => setAssignedTaskView((current) => ({ ...current, selectedId: null }))}
+          onClose={() => setAssignedTaskView(null)}
+          onStatusChange={updateAssignedTaskProgress}
+        />
+      )}
       {settingsOpen && (
         <Settings
           data={data}
@@ -1328,6 +1383,67 @@ function CollectionCard({ type, item, data, onClick, editable }) {
       </div>
       <span className="mini-button">{editable ? "✎" : "›"}</span>
     </article>
+  );
+}
+
+function AssignedTaskDialog({ data, user, taskIds, selectedId, onSelect, onBack, onClose, onStatusChange }) {
+  const tasks = taskIds
+    .map((id) => data.tasks.find((task) => String(task.id) === String(id)))
+    .filter(Boolean);
+  const task = selectedId
+    ? tasks.find((item) => String(item.id) === String(selectedId))
+    : null;
+
+  if (!task) {
+    return (
+      <div className="assigned-flight-backdrop" role="presentation" onClick={onClose}>
+        <section className="assigned-flight-panel assigned-task-panel" role="dialog" aria-modal="true" aria-labelledby="assigned-task-list-title" onClick={(event) => event.stopPropagation()}>
+          <header>
+            <div><p className="eyebrow">Přiřazené úkoly</p><h2 id="assigned-task-list-title">Vyberte úkol</h2></div>
+            <button type="button" onClick={onClose} aria-label="Zavřít">×</button>
+          </header>
+          <div className="assigned-flight-list">
+            {tasks.map((item) => {
+              const content = taskContent(item);
+              return (
+                <button type="button" key={item.id} onClick={() => onSelect(item.id)}>
+                  <span>📋</span><div><strong>{content.title}</strong><small>{item.dueDate ? `Termín ${item.dueDate}` : "Bez termínu"}</small></div><b>›</b>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      </div>
+    );
+  }
+
+  const content = taskContent(task);
+  const identities = [task.assignedUserId, task.assignedEmail, task.assignedTo].filter(Boolean).map(norm);
+  const isCurrentAssignee = [user?.id, user?.email, user?.name].filter(Boolean).map(norm).some((identity) => identities.includes(identity));
+  return (
+    <div className="assigned-flight-backdrop" role="presentation" onClick={onClose}>
+      <section className="assigned-flight-panel assigned-task-panel" role="dialog" aria-modal="true" aria-labelledby="assigned-task-title" onClick={(event) => event.stopPropagation()}>
+        <header>
+          <div><p className="eyebrow">Detail úkolu</p><h2 id="assigned-task-title">{content.title}</h2></div>
+          <button type="button" onClick={onClose} aria-label="Zavřít">×</button>
+        </header>
+        <div className="assigned-flight-details assigned-task-details">
+          <Info label="Úkol" value={content.title} />
+          <Info label="Termín" value={task.dueDate || "Bez termínu"} />
+          <Info label="Přiřazeno" value={task.assignedTo || task.assignedEmail || "Neuvedeno"} />
+          <Info label="Stav" value={task.completedAt || isDone(task) ? "Vyřízeno" : task.acceptedAt ? "Potvrzeno" : "Čeká na potvrzení"} />
+        </div>
+        {content.text && <div className="assigned-task-text"><small>Zadání</small><p>{content.text}</p></div>}
+        {isCurrentAssignee && !task.acceptedAt && !isDone(task) && (
+          <button type="button" className="assigned-flight-accept" onClick={() => onStatusChange(task.id, "accepted")}>✓ Potvrdit úkol</button>
+        )}
+        {isCurrentAssignee && task.acceptedAt && !task.completedAt && !isDone(task) && (
+          <button type="button" className="assigned-flight-complete" onClick={() => onStatusChange(task.id, "completed")}>✓ Úkol je vyřízen</button>
+        )}
+        {(task.completedAt || isDone(task)) && <p className="assigned-flight-completed-note">Úkol vyřídil {task.completedByName || task.acceptedByName || "uživatel"}.</p>}
+        {tasks.length > 1 && <button type="button" className="assigned-flight-back" onClick={onBack}>‹ Vybrat jiný úkol</button>}
+      </section>
+    </div>
   );
 }
 
