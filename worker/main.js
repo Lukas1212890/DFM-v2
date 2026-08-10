@@ -44,13 +44,13 @@ async function findAssignedUser(env,task){
 }
 async function notifyTaskChanges(env,previousState,nextState){
   const before=new Map((previousState?.tasks||[]).map(t=>[t.id,t]));
+  const adminRows=await env.DB.prepare('SELECT id,role FROM users WHERE active=1').all(),adminIds=(adminRows.results||[]).filter(user=>rolesOf(user).includes('admin')).map(user=>user.id);
   for(const task of nextState?.tasks||[]){
-    if(task.done===true||task.done==='Ano'||!assignedValue(task))continue;
     const old=before.get(task.id);
-    const changed=!old||JSON.stringify({a:assignedValue(old),d:old.dueDate,t:taskTitle(old),x:old.text||old.description||''})!==JSON.stringify({a:assignedValue(task),d:task.dueDate,t:taskTitle(task),x:task.text||task.description||''});
-    if(!changed)continue;
-    const user=await findAssignedUser(env,task);if(!user)continue;
-    await sendToUser(env,user.id,{title:old?'Úkol byl upraven':'Máte nový úkol',body:`${taskTitle(task)}${task.dueDate?` · termín ${task.dueDate}`:''}`,tag:`task-${task.id}`,url:'./#tasks'});
+    const assignmentChanged=!old||JSON.stringify({a:assignedValue(old),d:old.dueDate,t:taskTitle(old),x:old.text||old.description||''})!==JSON.stringify({a:assignedValue(task),d:task.dueDate,t:taskTitle(task),x:task.text||task.description||''});
+    if(assignmentChanged&&!(task.done===true||task.done==='Ano')&&assignedValue(task)){const user=await findAssignedUser(env,task);if(user)await sendToUser(env,user.id,{title:old?'Úkol byl upraven':'Máte nový úkol',body:`${taskTitle(task)}${task.dueDate?` · termín ${task.dueDate}`:''}`,tag:`task-${task.id}`,url:'./#tasks'});}
+    if(task.acceptedAt&&old?.acceptedAt!==task.acceptedAt){for(const adminId of adminIds)await sendToUser(env,adminId,{title:`Úkol potvrdil ${task.acceptedByName||'uživatel'}`,body:taskTitle(task),tag:`task-accepted-${task.id}`,url:'./#tasks'});}
+    if(task.completedAt&&old?.completedAt!==task.completedAt){for(const adminId of adminIds)await sendToUser(env,adminId,{title:`Úkol vyřídil ${task.completedByName||task.acceptedByName||'uživatel'}`,body:taskTitle(task),tag:`task-completed-${task.id}`,url:'./#tasks'});}
   }
 }
 async function notifyFlightChanges(env,previousState,nextState){
