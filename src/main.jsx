@@ -15,6 +15,7 @@ import './logo-fix.css';
 import './header-logo';
 import './task-assignment.css';
 import './task-assignment';
+import './task-progress.css';
 import './task-calendar-fix';
 import './dashboard-task-alert-position';
 import './flight-assignment-alert.css';
