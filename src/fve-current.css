@@ -997,6 +997,7 @@
 
 .fve-current-native .route-modal {
   width: min(500px, 100%);
+  max-height: calc(100dvh - var(--nav-h) - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
   overflow: hidden;
   border: 1px solid #294157;
   border-radius: 22px;
@@ -1029,6 +1030,8 @@
 .fve-current-native .route-modal .route-options {
   padding: 18px;
   border-top: 0;
+  max-height: none;
+  overflow: visible;
 }
 
 @media (max-width: 780px) {
@@ -1057,16 +1060,21 @@
   }
 
   .fve-current-native .route-modal-backdrop {
-    align-items: end;
-    padding: 8px 8px 0;
+    bottom: calc(var(--nav-h) + env(safe-area-inset-bottom));
+    align-items: center;
+    padding: max(12px, env(safe-area-inset-top)) 10px 12px;
   }
 
   .fve-current-native .route-modal {
-    border-radius: 22px 22px 0 0;
+    max-height: calc(100dvh - var(--nav-h) - 28px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    overflow-y: auto;
+    border-radius: 22px;
   }
 
   .fve-current-native .route-modal .route-options {
-    padding-bottom: calc(18px + env(safe-area-inset-bottom));
+    max-height: none;
+    overflow: visible;
+    padding-bottom: 18px;
   }
 }
 
