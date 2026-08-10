@@ -6,7 +6,7 @@ import'./cloud-shell.css';
 const STORAGE_KEY='dfm_react_pwa_v1',SESSION_KEY='dfm_auth_session',PENDING_KEY='dfm_pending_sync',CHAT_STATE_KEY='dfm_chat_state_v1';
 const API='https://dfm-cloud-api.bednarik.workers.dev';
 const APP_URL='https://lukas1212890.github.io/DFM-v2/';
-const EMPTY={drones:[],pilots:[],flights:[],tasks:[]};
+const EMPTY={drones:[],pilots:[],flights:[],tasks:[],plants:[]};
 const ROLE_LABELS={admin:'Administrátor',pilot:'Pilot',technician:'Technik',user:'Uživatel'};
 const ROLE_OPTIONS=['user','pilot','technician','admin'];
 const userRoles=value=>{const raw=Array.isArray(value?.roles)?value.roles:Array.isArray(value)?value:String(value?.role||value||'user').split(',');const roles=[...new Set(raw.map(x=>String(x).trim().toLowerCase()).filter(x=>ROLE_OPTIONS.includes(x)))];return roles.length?roles:['user'];};
