@@ -89,9 +89,11 @@ export default function FvePlanner({ plants: externalPlants = [], onChange, onCr
   const [plants, setPlantsState] = useState<Plant[]>(externalPlants);
   const plantsRef = useRef<Plant[]>(externalPlants);
   const seedSyncDone = useRef(false);
+  const pendingLocalPlants = useRef<{ signature: string; savedAt: number } | null>(null);
   function setPlants(update: Plant[] | ((current: Plant[]) => Plant[])) {
     const next = typeof update === "function" ? update(plantsRef.current) : update;
     plantsRef.current = next;
+    pendingLocalPlants.current = { signature: JSON.stringify(next), savedAt: Date.now() };
     setPlantsState(next);
     onChange?.(next);
   }
@@ -134,6 +136,13 @@ export default function FvePlanner({ plants: externalPlants = [], onChange, onCr
     const knownIds = new Set(externalPlants.map((plant) => plant.id));
     const missingPlants = importedPlants.filter((plant) => !knownIds.has(plant.id));
     const mergedPlants = missingPlants.length ? [...externalPlants, ...missingPlants] : externalPlants;
+    const incomingSignature = JSON.stringify(mergedPlants);
+    const pending = pendingLocalPlants.current;
+    if (pending && pending.signature !== incomingSignature && Date.now() - pending.savedAt < 15000) {
+      onChange?.(plantsRef.current);
+      return;
+    }
+    if (pending?.signature === incomingSignature) pendingLocalPlants.current = null;
     plantsRef.current = mergedPlants;
     setPlantsState(mergedPlants);
     if (missingPlants.length && canEdit && !seedSyncDone.current) {
