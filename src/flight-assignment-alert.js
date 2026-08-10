@@ -12,11 +12,11 @@ function dismissFlightAlert(box){
 
 function prepareFlightAlert(box){
   let startX=0,startY=0,dragX=0,dragging=false;
-  box.addEventListener('pointerdown',event=>{if(event.target.closest('.my-flight-alert-close'))return;startX=event.clientX;startY=event.clientY;dragX=0;dragging=true;box.classList.add('dragging');box.setPointerCapture?.(event.pointerId)});
+  box.addEventListener('pointerdown',event=>{if(!matchMedia('(pointer: coarse)').matches)return;startX=event.clientX;startY=event.clientY;dragX=0;dragging=true;box.classList.add('dragging');box.setPointerCapture?.(event.pointerId)});
   box.addEventListener('pointermove',event=>{if(!dragging)return;const dx=event.clientX-startX,dy=event.clientY-startY;if(Math.abs(dy)>Math.abs(dx)&&Math.abs(dy)>8){dragging=false;box.classList.remove('dragging');return;}dragX=Math.min(0,dx);if(dragX<0){box.style.transform=`translateX(${dragX}px)`;box.style.opacity=String(Math.max(.25,1-Math.abs(dragX)/220));}});
   const finish=()=>{if(!dragging)return;dragging=false;box.classList.remove('dragging');if(dragX<=-70){box.dataset.swiped='1';dismissFlightAlert(box);return;}box.style.transform='';box.style.opacity='';if(Math.abs(dragX)>8){box.dataset.swiped='1';setTimeout(()=>delete box.dataset.swiped,80);}};
   box.addEventListener('pointerup',finish);box.addEventListener('pointercancel',finish);
-  box.addEventListener('click',event=>{if(event.target.closest('.my-flight-alert-close')){event.preventDefault();event.stopPropagation();dismissFlightAlert(box);return;}if(box.dataset.swiped==='1'){event.preventDefault();return;}const button=[...document.querySelectorAll('.bottom-nav button')].find(x=>flightNorm(x.textContent)==='🛫lety'||flightNorm(x.textContent).endsWith('lety'));button?.click();});
+  box.addEventListener('click',event=>{if(box.dataset.swiped==='1'){event.preventDefault();return;}const button=[...document.querySelectorAll('.bottom-nav button')].find(x=>flightNorm(x.textContent)==='🛫lety'||flightNorm(x.textContent).endsWith('lety'));button?.click();});
 }
 
 async function loadFlightCurrentUser(){
@@ -37,10 +37,10 @@ function renderMyFlights(){
   if(!box){box=document.createElement('div');box.className='my-flight-alert';box.setAttribute('role','button');box.tabIndex=0;prepareFlightAlert(box);}
   const taskAlert=main.querySelector(':scope > .my-task-alert'),anchor=taskAlert||welcome;if(anchor.nextElementSibling!==box)anchor.insertAdjacentElement('afterend',box);
   if(box.dataset.signature===signature)return;box.dataset.signature=signature;
-  box.innerHTML=`<span class="my-flight-alert-icon">🛫</span><div><small>Máte naplánované lety</small><strong>${flights.length} ${flights.length===1?'nadcházející let':'nadcházející lety'}</strong><em>${first.date||'Bez data'} · ${first.location||'Lokalita neuvedena'}${flights.length>1?` · +${flights.length-1} další`:''}</em></div><span class="my-flight-alert-close" role="button" tabindex="0" aria-label="Skrýt upozornění">×</span><b>›</b>`;
+  box.innerHTML=`<span class="my-flight-alert-icon">🛫</span><div><small>Máte naplánované lety</small><strong>${flights.length} ${flights.length===1?'nadcházející let':'nadcházející lety'}</strong><em>${first.date||'Bez data'} · ${first.location||'Lokalita neuvedena'}${flights.length>1?` · +${flights.length-1} další`:''}</em></div><b>›</b>`;
 }
 
 let flightRefreshTimer=0;function scheduleFlightRefresh(){clearTimeout(flightRefreshTimer);flightRefreshTimer=setTimeout(renderMyFlights,100)}
 const flightObserver=new MutationObserver(scheduleFlightRefresh);
-async function startFlightAlerts(){flightObserver.observe(document.body,{childList:true,subtree:true});await loadFlightCurrentUser();addEventListener('storage',scheduleFlightRefresh);addEventListener('dfm:data-updated',scheduleFlightRefresh);document.addEventListener('click',scheduleFlightRefresh,true);scheduleFlightRefresh();}
+async function startFlightAlerts(){flightObserver.observe(document.body,{childList:true,subtree:true});await loadFlightCurrentUser();addEventListener('storage',scheduleFlightRefresh);addEventListener('dfm:data-updated',scheduleFlightRefresh);addEventListener('dfm:overview-alert-restored',scheduleFlightRefresh);document.addEventListener('click',scheduleFlightRefresh,true);scheduleFlightRefresh();}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',startFlightAlerts,{once:true});else startFlightAlerts();
