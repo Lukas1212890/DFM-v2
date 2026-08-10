@@ -19,6 +19,8 @@ import './task-calendar-fix';
 import './dashboard-task-alert-position';
 import './flight-assignment-alert.css';
 import './flight-assignment-alert';
+import './theme-switcher.css';
+import './theme-switcher';
 import './accident-pilot-select';
 import './sheet-scroll-fix.css';
 import './settings-scroll-fix.css';
