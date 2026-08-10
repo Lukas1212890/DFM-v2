@@ -1081,7 +1081,9 @@
     bottom: calc(var(--nav-h) + env(safe-area-inset-bottom));
     align-items: center;
     overflow: hidden;
+    overflow-x: hidden;
     overscroll-behavior: contain;
+    touch-action: pan-y;
     padding: max(10px, env(safe-area-inset-top)) 8px 10px;
   }
 
@@ -1089,17 +1091,24 @@
     display: grid;
     grid-template-rows: auto minmax(0, 1fr);
     width: 100%;
+    max-width: 100%;
     max-height: calc(100dvh - var(--nav-h) - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
     overflow: hidden;
+    overflow-x: hidden;
     overscroll-behavior: contain;
+    touch-action: pan-y;
     border-radius: 18px;
     padding-bottom: 0;
   }
 
   .fve-current-native .modal form {
+    width: 100%;
+    max-width: 100%;
     min-height: 0;
     overflow-y: auto;
+    overflow-x: hidden;
     overscroll-behavior: contain;
+    touch-action: pan-y;
     -webkit-overflow-scrolling: touch;
     padding-bottom: 0;
   }
@@ -1107,10 +1116,20 @@
   .fve-current-native .modal-actions {
     bottom: 0;
     z-index: 3;
-    margin: 0 -18px;
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
     padding: 12px 18px max(12px, env(safe-area-inset-bottom));
     border-top: 1px solid #243d55;
     background: #091827;
+  }
+
+  .fve-current-native .modal form > *,
+  .fve-current-native .modal input,
+  .fve-current-native .modal textarea,
+  .fve-current-native .modal select {
+    max-width: 100%;
+    min-width: 0;
   }
 }
 
