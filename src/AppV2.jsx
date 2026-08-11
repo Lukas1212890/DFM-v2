@@ -106,6 +106,8 @@ function AppV2({ permissions = {}, user = null }) {
     [assignedTaskView, setAssignedTaskView] = useState(null),
     [flightArchiveOpen, setFlightArchiveOpen] = useState(false),
     [taskArchiveOpen, setTaskArchiveOpen] = useState(false),
+    [flightArchiveSelection, setFlightArchiveSelection] = useState([]),
+    [taskArchiveSelection, setTaskArchiveSelection] = useState([]),
     [moreOpen, setMoreOpen] = useState(false),
     [search, setSearch] = useState(""),
     [sensorFilters, setSensorFilters] = useState([]);
@@ -263,6 +265,30 @@ function AppV2({ permissions = {}, user = null }) {
       task.done = true;
       setAssignedTaskView(null);
     }
+    save(next);
+  };
+  const toggleArchiveSelection = (type, id) => {
+    const setter = type === "flights" ? setFlightArchiveSelection : setTaskArchiveSelection;
+    setter((current) =>
+      current.includes(id) ? current.filter((itemId) => itemId !== id) : [...current, id],
+    );
+  };
+  const deleteArchivedItems = (type, deleteAll = false) => {
+    const recordType = type === "flights" ? "flight" : "task";
+    if (!canDeleteType(recordType)) return;
+    const selection = type === "flights" ? flightArchiveSelection : taskArchiveSelection;
+    const archived = type === "flights"
+      ? data.flights.filter((item) => item.completedAt)
+      : data.tasks.filter((item) => item.completedAt || isDone(item));
+    const ids = deleteAll ? archived.map((item) => item.id) : selection;
+    if (!ids.length) return;
+    const label = type === "flights" ? "letů" : "úkolů";
+    if (!confirm(deleteAll ? `Opravdu trvale smazat celý archiv ${label}?` : `Opravdu trvale smazat ${ids.length} vybraných ${label}?`)) return;
+    const selectedIds = new Set(ids);
+    const next = structuredClone(data);
+    next[type] = next[type].filter((item) => !selectedIds.has(item.id));
+    if (type === "flights") setFlightArchiveSelection([]);
+    else setTaskArchiveSelection([]);
     save(next);
   };
   const selectedDrone =
@@ -631,6 +657,8 @@ function AppV2({ permissions = {}, user = null }) {
       : type === "tasks"
         ? c[1].filter((task) => taskArchiveOpen ? Boolean(task.completedAt || isDone(task)) : !task.completedAt && !isDone(task))
         : c[1];
+    const archiveOpen = type === "flights" ? flightArchiveOpen : type === "tasks" ? taskArchiveOpen : false;
+    const selection = type === "flights" ? flightArchiveSelection : taskArchiveSelection;
     return (
       <>
         <Title eyebrow="Evidence" title={c[0]} badge={items.length} />
@@ -666,6 +694,26 @@ function AppV2({ permissions = {}, user = null }) {
             </button>
           </div>
         )}
+        {archiveOpen && canDeleteType(c[2]) && items.length > 0 && (
+          <div className="archive-bulk-actions">
+            <button
+              type="button"
+              onClick={() =>
+                type === "flights"
+                  ? setFlightArchiveSelection(selection.length === items.length ? [] : items.map((item) => item.id))
+                  : setTaskArchiveSelection(selection.length === items.length ? [] : items.map((item) => item.id))
+              }
+            >
+              {selection.length === items.length ? "Zrušit označení" : "Označit vše"}
+            </button>
+            <button type="button" className="danger" disabled={!selection.length} onClick={() => deleteArchivedItems(type)}>
+              Smazat vybrané{selection.length ? ` (${selection.length})` : ""}
+            </button>
+            <button type="button" className="danger solid" onClick={() => deleteArchivedItems(type, true)}>
+              Smazat vše
+            </button>
+          </div>
+        )}
         <div className="list">
           {items.map((item) => (
             <CollectionCard
@@ -674,7 +722,10 @@ function AppV2({ permissions = {}, user = null }) {
               item={item}
               data={data}
               editable={canEditType(c[2])}
-              onClick={() => setEditor({ type: c[2], item })}
+              selectable={archiveOpen && canDeleteType(c[2])}
+              selected={selection.includes(item.id)}
+              onSelect={() => toggleArchiveSelection(type, item.id)}
+              onClick={() => archiveOpen && canDeleteType(c[2]) ? toggleArchiveSelection(type, item.id) : setEditor({ type: c[2], item })}
             />
           ))}
           {!items.length && (
@@ -1416,7 +1467,7 @@ function DroneCard({ drone, onClick }) {
     </article>
   );
 }
-function CollectionCard({ type, item, data, onClick, editable }) {
+function CollectionCard({ type, item, data, onClick, editable, selectable = false, selected = false, onSelect }) {
   let icon = "○",
     title = "",
     sub = "";
@@ -1436,13 +1487,17 @@ function CollectionCard({ type, item, data, onClick, editable }) {
     sub = `${item.dueDate || "Bez termínu"}${item.assignedTo ? ` · ${item.assignedTo}` : ""}`;
   }
   return (
-    <article className="list-item" onClick={onClick}>
+    <article className={`list-item${selected ? " archive-selected" : ""}`} onClick={onClick}>
       <div className="item-icon">{icon}</div>
       <div className="item-main">
         <h3>{title}</h3>
         <p>{sub}</p>
       </div>
-      <span className="mini-button">{editable ? "✎" : "›"}</span>
+      {selectable ? (
+        <input className="archive-checkbox" type="checkbox" checked={selected} aria-label="Označit položku" onClick={(event) => event.stopPropagation()} onChange={onSelect} />
+      ) : (
+        <span className="mini-button">{editable ? "✎" : "›"}</span>
+      )}
     </article>
   );
 }
