@@ -217,6 +217,7 @@ function AppV2({ permissions = {}, user = null }) {
   const save = (next) => {
     setData(next);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    dispatchEvent(new CustomEvent("dfm:data-updated"));
   };
   const savePlants = useCallback((plants) => {
     setData((current) => {
@@ -1763,7 +1764,7 @@ const schemas = {
   ],
   flight: [
     ["date", "Datum", "date"],
-    ["pilotId", "Vyberte pilota", "pilot"],
+    ["assignedUserId", "Vyberte pilota", "pilot"],
     ["droneId", "Dron", "drone"],
     ["battery", "Baterie", "text"],
     ["location", "Lokalita", "text"],
