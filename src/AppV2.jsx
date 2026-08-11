@@ -104,6 +104,7 @@ function AppV2({ permissions = {}, user = null }) {
     [settingsOpen, setSettingsOpen] = useState(false),
     [assignedFlightView, setAssignedFlightView] = useState(null),
     [assignedTaskView, setAssignedTaskView] = useState(null),
+    [flightArchiveOpen, setFlightArchiveOpen] = useState(false),
     [moreOpen, setMoreOpen] = useState(false),
     [search, setSearch] = useState(""),
     [sensorFilters, setSensorFilters] = useState([]);
@@ -240,6 +241,7 @@ function AppV2({ permissions = {}, user = null }) {
       flight.completedAt = changedAt;
       flight.completedByUserId = user?.id || "";
       flight.completedByName = user?.name || flight.acceptedByName || "Pilot";
+      setAssignedFlightView(null);
     }
     save(next);
   };
@@ -622,11 +624,33 @@ function AppV2({ permissions = {}, user = null }) {
       flights: ["Letový deník", data.flights, "flight"],
       tasks: ["Úkoly", data.tasks, "task"],
     }[type];
+    const items =
+      type === "flights"
+        ? c[1].filter((flight) =>
+            flightArchiveOpen ? Boolean(flight.completedAt) : !flight.completedAt,
+          )
+        : c[1];
     return (
       <>
-        <Title eyebrow="Evidence" title={c[0]} badge={c[1].length} />
+        <Title eyebrow="Evidence" title={c[0]} badge={items.length} />
+        {type === "flights" && (
+          <div className="tabs flight-log-tabs">
+            <button
+              className={!flightArchiveOpen ? "active" : ""}
+              onClick={() => setFlightArchiveOpen(false)}
+            >
+              Aktivní lety <span className="drone-tab-count service">{c[1].filter((flight) => !flight.completedAt).length}</span>
+            </button>
+            <button
+              className={flightArchiveOpen ? "active archive-tab" : "archive-tab"}
+              onClick={() => setFlightArchiveOpen(true)}
+            >
+              Archiv <span className="drone-tab-count">{c[1].filter((flight) => flight.completedAt).length}</span>
+            </button>
+          </div>
+        )}
         <div className="list">
-          {c[1].map((item) => (
+          {items.map((item) => (
             <CollectionCard
               key={item.id}
               type={c[2]}
@@ -636,7 +660,15 @@ function AppV2({ permissions = {}, user = null }) {
               onClick={() => setEditor({ type: c[2], item })}
             />
           ))}
-          {!c[1].length && <Empty text="Zatím žádné položky." />}
+          {!items.length && (
+            <Empty
+              text={
+                type === "flights" && flightArchiveOpen
+                  ? "Archiv letů je zatím prázdný."
+                  : "Zatím žádné položky."
+              }
+            />
+          )}
         </div>
       </>
     );
