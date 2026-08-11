@@ -105,6 +105,7 @@ function AppV2({ permissions = {}, user = null }) {
     [assignedFlightView, setAssignedFlightView] = useState(null),
     [assignedTaskView, setAssignedTaskView] = useState(null),
     [flightArchiveOpen, setFlightArchiveOpen] = useState(false),
+    [taskArchiveOpen, setTaskArchiveOpen] = useState(false),
     [moreOpen, setMoreOpen] = useState(false),
     [search, setSearch] = useState(""),
     [sensorFilters, setSensorFilters] = useState([]);
@@ -260,6 +261,7 @@ function AppV2({ permissions = {}, user = null }) {
       task.completedByUserId = user?.id || "";
       task.completedByName = user?.name || task.acceptedByName || "Uživatel";
       task.done = true;
+      setAssignedTaskView(null);
     }
     save(next);
   };
@@ -624,11 +626,10 @@ function AppV2({ permissions = {}, user = null }) {
       flights: ["Letový deník", data.flights, "flight"],
       tasks: ["Úkoly", data.tasks, "task"],
     }[type];
-    const items =
-      type === "flights"
-        ? c[1].filter((flight) =>
-            flightArchiveOpen ? Boolean(flight.completedAt) : !flight.completedAt,
-          )
+    const items = type === "flights"
+      ? c[1].filter((flight) => flightArchiveOpen ? Boolean(flight.completedAt) : !flight.completedAt)
+      : type === "tasks"
+        ? c[1].filter((task) => taskArchiveOpen ? Boolean(task.completedAt || isDone(task)) : !task.completedAt && !isDone(task))
         : c[1];
     return (
       <>
@@ -649,6 +650,22 @@ function AppV2({ permissions = {}, user = null }) {
             </button>
           </div>
         )}
+        {type === "tasks" && (
+          <div className="tabs task-log-tabs">
+            <button
+              className={!taskArchiveOpen ? "active" : ""}
+              onClick={() => setTaskArchiveOpen(false)}
+            >
+              Aktivní úkoly <span className="drone-tab-count service">{c[1].filter((task) => !task.completedAt && !isDone(task)).length}</span>
+            </button>
+            <button
+              className={taskArchiveOpen ? "active archive-tab" : "archive-tab"}
+              onClick={() => setTaskArchiveOpen(true)}
+            >
+              Archiv <span className="drone-tab-count">{c[1].filter((task) => task.completedAt || isDone(task)).length}</span>
+            </button>
+          </div>
+        )}
         <div className="list">
           {items.map((item) => (
             <CollectionCard
@@ -665,7 +682,9 @@ function AppV2({ permissions = {}, user = null }) {
               text={
                 type === "flights" && flightArchiveOpen
                   ? "Archiv letů je zatím prázdný."
-                  : "Zatím žádné položky."
+                  : type === "tasks" && taskArchiveOpen
+                    ? "Archiv úkolů je zatím prázdný."
+                    : "Zatím žádné položky."
               }
             />
           )}
