@@ -1,4 +1,4 @@
-const NC_DATA='dfm_react_pwa_v1',NC_SESSION='dfm_auth_session',NC_CHAT='dfm_chat_state_v1',NC_API='https://dfm-cloud-api.bednarik.workers.dev';
+const NC_DATA='dfm_react_pwa_v1',NC_SESSION='dfm_auth_session',NC_CHAT='dfm_chat_state_v1',NC_ORDER='dfm_notification_order_v1',NC_API='https://dfm-cloud-api.bednarik.workers.dev';
 const ncNorm=value=>String(value||'').trim().toLocaleLowerCase('cs-CZ');
 const ncToday=()=>{const d=new Date();return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};
 const ncTaskTitle=task=>String(task?.custom||task?.type||'Úkol').split('<<<DFM_TASK_TEXT>>>')[0].trim()||'Úkol';
@@ -10,6 +10,7 @@ function readKeys(){try{return new Set(JSON.parse(localStorage.getItem(`dfm_noti
 function saveKeys(keys){if(ncUser?.id)localStorage.setItem(`dfm_notification_read:${ncUser.id}`,JSON.stringify([...keys].slice(-500)))}
 function licenseDays(date){const a=new Date(`${date}T00:00:00`),b=new Date();b.setHours(0,0,0,0);return Math.round((a-b)/86400000)}
 function myPilot(p){return p.appUserId?String(p.appUserId)===String(ncUser?.id):p.email?ncNorm(p.email)===ncNorm(ncUser?.email):ncNorm(p.name)===ncNorm(ncUser?.name)}
+function newestFirst(items){if(!ncUser)return items;const storageKey=`${NC_ORDER}:${ncUser.id}`;let order={};try{order=JSON.parse(localStorage.getItem(storageKey)||'{}')}catch{}const now=Date.now();items.forEach((item,index)=>{if(!order[item.key])order[item.key]=now+index});const currentKeys=new Set(items.map(item=>item.key));order=Object.fromEntries(Object.entries(order).filter(([key])=>currentKeys.has(key)));localStorage.setItem(storageKey,JSON.stringify(order));return items.sort((a,b)=>(order[b.key]||0)-(order[a.key]||0))}
 
 function collectNotifications(){
   if(!ncUser)return[];let data={tasks:[],flights:[],pilots:[],drones:[]};try{data=JSON.parse(localStorage.getItem(NC_DATA)||'{}')}catch{}
@@ -21,7 +22,7 @@ function collectNotifications(){
   (data.pilots||[]).filter(p=>p.licenseUntil&&(isAdmin||myPilot(p))).map(p=>({...p,days:licenseDays(p.licenseUntil)})).filter(p=>p.days<=30).forEach(p=>{const stage=p.days<0?'expired':p.days<=0?'0':p.days<=1?'1':p.days<=7?'7':'30';items.push({key:`license:${p.id}:${p.licenseUntil}:${stage}`,type:p.days<0?'danger':'license',recordType:'pilot',recordId:p.id,icon:'⚠',title:`Licence · ${p.name||'Pilot'}`,detail:p.days<0?`Propadla před ${Math.abs(p.days)} dny`:p.days===0?'Končí dnes':`Končí za ${p.days} dní`});});
   if(isAdmin)(data.drones||[]).forEach(d=>{(d.accidents||[]).filter(x=>!(x.status==='Ano'||x.resolved===true)).forEach(x=>items.push({key:`accident:${d.id}:${x.id}:${x.status||''}`,type:'danger',recordType:'accident',recordId:x.id,droneId:d.id,icon:'🚨',title:x.title||'Aktivní nehoda',detail:d.name||'Dron'}));(d.claims||[]).filter(x=>x.status!=='Vyřízeno').forEach(x=>items.push({key:`claim:${d.id}:${x.id}:${x.status||''}`,type:'claim',recordType:'claim',recordId:x.id,droneId:d.id,icon:'⚠',title:x.title||'Aktivní reklamace',detail:d.name||'Dron'}));(d.services||[]).filter(x=>!(x.status==='Ano'||x.resolved===true)).forEach(x=>items.push({key:`service:${d.id}:${x.id}:${x.status||''}`,type:'service',recordType:'service',recordId:x.id,droneId:d.id,icon:'🔧',title:x.title||'Aktivní servis',detail:d.name||'Dron'}));});
   try{const chat=JSON.parse(localStorage.getItem(`${NC_CHAT}:${ncUser.id}`)||'{}'),ids=Array.isArray(chat.unreadIds)?chat.unreadIds:[];ids.forEach(id=>items.push({key:`chat:${id}`,type:'chat',icon:'💬',title:'Nová zpráva v chatu',detail:'DFM Chat',section:'chat'}));}catch{}
-  return items;
+  return newestFirst(items);
 }
 
 function navigateTo(item){closeCenter();if(item.section==='chat'){document.querySelector('.chat-fab')?.click();return;}if(item.recordType==='flight'&&item.recordId){dispatchEvent(new CustomEvent('dfm:open-assigned-flights',{detail:{flightIds:[item.recordId]}}));return;}if(item.recordType==='task'&&item.recordId){dispatchEvent(new CustomEvent('dfm:open-assigned-tasks',{detail:{taskIds:[item.recordId]}}));return;}if(item.recordType&&item.recordId){dispatchEvent(new CustomEvent('dfm:open-record',{detail:{type:item.recordType,id:item.recordId,droneId:item.droneId||''}}));return;}}
