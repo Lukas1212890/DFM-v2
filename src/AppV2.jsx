@@ -95,7 +95,16 @@ function findDirectoryUser(value) {
 }
 
 function AppV2({ permissions = {}, user = null }) {
-  const canAccessPlanner = Boolean(permissions.manageUsers);
+  const currentRoles = Array.isArray(user?.roles)
+    ? user.roles.map((role) => String(role).toLowerCase())
+    : String(user?.role || "user")
+        .split(",")
+        .map((role) => role.trim().toLowerCase());
+  const canManagePlanner = currentRoles.includes("admin");
+  const canAccessPlanner =
+    canManagePlanner ||
+    currentRoles.includes("pilot") ||
+    currentRoles.includes("technician");
   const [data, setData] = useState(loadData),
     [view, setView] = useState("dashboard"),
     [selectedDroneId, setSelectedDroneId] = useState(null),
@@ -753,9 +762,9 @@ function AppV2({ permissions = {}, user = null }) {
     ) : view === "fve" ? (
       canAccessPlanner ? <FvePlanner
         plants={data.plants || []}
-        canEdit={Boolean(permissions.editFlights || permissions.editDrones)}
-        onChange={savePlants}
-        onCreateFlight={(plant) => {
+        canEdit={canManagePlanner}
+        onChange={canManagePlanner ? savePlants : undefined}
+        onCreateFlight={canManagePlanner ? (plant) => {
           setEditor({
             type: "flight",
             item: null,
@@ -773,7 +782,7 @@ function AppV2({ permissions = {}, user = null }) {
               fvePlantId: plant.id,
             },
           });
-        }}
+        } : undefined}
       /> : renderDashboard()
     ) : (
       renderCollection(view)
