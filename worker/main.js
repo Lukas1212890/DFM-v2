@@ -146,8 +146,10 @@ export default{
       if(url.pathname==='/state'&&request.method==='PUT'){
         const beforeRow=await env.DB.prepare('SELECT data FROM app_state WHERE id=1').first();
         const before=beforeRow?JSON.parse(beforeRow.data):{tasks:[]};
-        const copy=request.clone(),response=await app.fetch(request,env);
-        if(response.ok){const body=await copy.json().catch(()=>null);if(body?.data)await Promise.all([notifyTaskChanges(env,before,body.data),notifyFlightChanges(env,before,body.data)]);}
+        const copy=request.clone(),body=await copy.json().catch(()=>null),user=await currentUser(request,env);
+        if(body?.data&&JSON.stringify(before?.plants||[])!==JSON.stringify(body.data.plants||[])&&!hasRole(user,'admin'))return json({error:'Plánovač může upravovat pouze administrátor.'},403,origin);
+        const response=await app.fetch(request,env);
+        if(response.ok&&body?.data)await Promise.all([notifyTaskChanges(env,before,body.data),notifyFlightChanges(env,before,body.data)]);
         return response;
       }
       return app.fetch(request,env);
