@@ -124,6 +124,25 @@ export default{
         const id=decodeURIComponent(url.pathname.slice('/chat/'.length));if(!id)return json({error:'Chybí ID zprávy.'},400,origin);
         const result=await env.DB.prepare('DELETE FROM chat_messages WHERE id=?').bind(id).run();if(!result.meta?.changes)return json({error:'Zpráva nebyla nalezena.'},404,origin);return json({ok:true},200,origin);
       }
+      if(url.pathname==='/chat'&&request.method==='POST'){
+        const user=await currentUser(request,env);if(!user)return json({error:'Přihlášení je vyžadováno.'},401,origin);
+        const body=await request.clone().json().catch(()=>null),response=await app.fetch(request,env);
+        if(response.ok&&String(body?.message||'').trim()){
+          await ensurePushSchema(env);
+          const result=await response.clone().json().catch(()=>({})),recipientId=String(body?.recipientId||'').trim();
+          const recipients=recipientId
+            ? [recipientId]
+            : ((await env.DB.prepare('SELECT id FROM users WHERE active=1 AND id<>?').bind(user.id).all()).results||[]).map(item=>item.id);
+          const preview=String(body.message).trim().replace(/\s+/g,' ').slice(0,160);
+          await Promise.all([...new Set(recipients)].map(userId=>sendToUser(env,userId,{
+            title:recipientId?`Nová zpráva od ${user.name||user.email}`:`Nová zpráva pro všechny od ${user.name||user.email}`,
+            body:preview,
+            tag:`chat-${result.id||crypto.randomUUID()}`,
+            url:'./#chat'
+          })));
+        }
+        return response;
+      }
       if(url.pathname==='/state'&&request.method==='PUT'){
         const beforeRow=await env.DB.prepare('SELECT data FROM app_state WHERE id=1').first();
         const before=beforeRow?JSON.parse(beforeRow.data):{tasks:[]};
