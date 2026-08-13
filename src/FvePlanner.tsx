@@ -91,6 +91,7 @@ export default function FvePlanner({ plants: externalPlants = [], onChange, onCr
   const seedSyncDone = useRef(false);
   const pendingLocalPlants = useRef<{ signature: string; savedAt: number } | null>(null);
   function setPlants(update: Plant[] | ((current: Plant[]) => Plant[])) {
+    if (!canEdit) return;
     const next = typeof update === "function" ? update(plantsRef.current) : update;
     plantsRef.current = next;
     pendingLocalPlants.current = { signature: JSON.stringify(next), savedAt: Date.now() };
@@ -349,6 +350,7 @@ export default function FvePlanner({ plants: externalPlants = [], onChange, onCr
 
   function savePlant(event: FormEvent) {
     event.preventDefault();
+    if (!canEdit) return;
     const coords = parseCoordinates(form.coordinates);
     if (!form.name.trim() || !coords) {
       setMessage("Vyplň název a platné souřadnice, například 49.1951, 16.6068.");
@@ -379,6 +381,7 @@ export default function FvePlanner({ plants: externalPlants = [], onChange, onCr
   }
 
   function editPlant(plant: Plant) {
+    if (!canEdit) return;
     setEditingId(plant.id);
     setForm({
       name: plant.name,
@@ -397,6 +400,7 @@ export default function FvePlanner({ plants: externalPlants = [], onChange, onCr
   }
 
   function removePlant(id: string) {
+    if (!canEdit) return;
     if (!confirm("Opravdu chceš tuto FVE odstranit?")) return;
     setPlants((current) => current.filter((plant) => plant.id !== id));
     setSelected((current) => current.filter((item) => item !== id));
@@ -421,6 +425,7 @@ export default function FvePlanner({ plants: externalPlants = [], onChange, onCr
   }
 
   function importData(event: ChangeEvent<HTMLInputElement>) {
+    if (!canEdit) return;
     const file = event.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
@@ -595,7 +600,7 @@ export default function FvePlanner({ plants: externalPlants = [], onChange, onCr
               <div className="empty-state">
                 <div>⌖</div><strong>Zatím tu není žádná FVE</strong>
                 <p>Přidej první lokalitu pomocí názvu a GPS souřadnic.</p>
-                <button onClick={() => setFormOpen(true)}>Přidat první FVE</button>
+                {canEdit && <button onClick={() => setFormOpen(true)}>Přidat první FVE</button>}
               </div>
             )}
             {plants.length > 0 && !visiblePlants.length && <div className="empty-filter">{viewMode === "archive" ? "Archiv je zatím prázdný." : "Filtru neodpovídá žádná lokalita."}</div>}
@@ -706,7 +711,7 @@ export default function FvePlanner({ plants: externalPlants = [], onChange, onCr
                 <p>{detailPlant.note || "Bez poznámky"}</p>
               </div>
 
-              <div className="detail-status-actions">
+              {canEdit && <div className="detail-status-actions">
                 <span>Rychle změnit stav</span>
                 <div>
                   {(Object.keys(statusMeta) as Status[]).map((status) => (
@@ -725,7 +730,7 @@ export default function FvePlanner({ plants: externalPlants = [], onChange, onCr
                     </button>
                   ))}
                 </div>
-              </div>
+              </div>}
 
               <div className="detail-link-actions">
                 {onCreateFlight && <button type="button" className="detail-dfm-flight" onClick={() => onCreateFlight(detailPlant)}>Naplánovat let v DFM</button>}
@@ -738,7 +743,7 @@ export default function FvePlanner({ plants: externalPlants = [], onChange, onCr
         </div>
       )}
 
-      {formOpen && (
+      {formOpen && canEdit && (
         <div className="modal-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) setFormOpen(false); }}>
           <section className="modal" role="dialog" aria-modal="true" aria-labelledby="form-title">
             <div className="modal-head">
