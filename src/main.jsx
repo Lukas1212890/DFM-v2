@@ -24,8 +24,6 @@ import './overview-alert-restore.css';
 import './overview-alert-restore';
 import './theme-switcher.css';
 import './theme-switcher';
-import './license-expiry-alert.css';
-import './license-expiry-alert';
 import './notification-center.css';
 import './notification-fab.css';
 import './notification-center';
