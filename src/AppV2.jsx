@@ -2123,8 +2123,8 @@ function Field({ name, label, type, options, value, update, data, directory = []
         <span>{label}</span>
         <textarea
           name={name}
-          value={assignedUserId}
-          onChange={(e) => onPilotUserChange?.(e.target.value)}
+          value={value || ""}
+          onChange={(e) => update(name, e.target.value)}
         />
       </label>
     );
