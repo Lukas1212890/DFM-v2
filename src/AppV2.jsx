@@ -131,8 +131,8 @@ function AppV2({ permissions = {}, user = null }) {
     const openRecord = (event) => {
       const { type, id, droneId } = event.detail || {};
       if (!type || !id) return;
-      if (["task", "flight", "pilot"].includes(type)) {
-        const key = type === "task" ? "tasks" : type === "flight" ? "flights" : "pilots",
+      if (["task", "flight"].includes(type)) {
+        const key = type === "task" ? "tasks" : "flights",
           item = data[key].find((record) => String(record.id) === String(id));
         if (!item) return;
         setView(key);
@@ -303,6 +303,7 @@ function AppV2({ permissions = {}, user = null }) {
     todayTasks = data.tasks.filter((t) => t.dueDate === today && !isDone(t));
   const nav = (next) => {
     if (next === "fve" && !canAccessPlanner) next = "dashboard";
+    if (next === "pilots") next = "dashboard";
     setView(next);
     setSelectedDroneId(null);
     setSelectedOffice(null);
@@ -478,12 +479,6 @@ function AppV2({ permissions = {}, user = null }) {
           label="Baterie"
           value={batteryCount}
           onClick={() => nav("drones")}
-        />
-        <DashboardButton
-          icon="👤"
-          label="Piloti"
-          value={data.pilots.length}
-          onClick={() => nav("pilots")}
         />
         <DashboardButton
           icon="✓"
@@ -784,9 +779,7 @@ function AppV2({ permissions = {}, user = null }) {
       renderCollection(view)
     );
   const createType =
-    view === "pilots"
-      ? "pilot"
-      : view === "flights"
+    view === "flights"
         ? "flight"
         : view === "tasks"
           ? "task"
@@ -797,7 +790,7 @@ function AppV2({ permissions = {}, user = null }) {
     ["calendar", "🗓️", "Kalendář"],
     ["flights", "🛫", "Lety"],
   ];
-  const moreActive = ["pilots", "tasks", "fve"].includes(view);
+  const moreActive = ["tasks", "fve"].includes(view);
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -871,14 +864,6 @@ function AppV2({ permissions = {}, user = null }) {
                 </div>
                 <b>›</b>
               </button>}
-              <button onClick={() => nav("pilots")}>
-                <span>👤</span>
-                <div>
-                  <strong>Piloti</strong>
-                  <small>Evidence pilotů a oprávnění</small>
-                </div>
-                <b>›</b>
-              </button>
               <button onClick={() => nav("tasks")}>
                 <span>✓</span>
                 <div>
