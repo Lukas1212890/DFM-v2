@@ -19,6 +19,12 @@ async function ensurePushSchema(env){
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS push_log(id TEXT PRIMARY KEY,event_key TEXT NOT NULL UNIQUE,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`)
   ]);
 }
+async function ensureReadStateSchema(env){
+  await env.DB.batch([
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS user_read_state(user_id TEXT NOT NULL,category TEXT NOT NULL,item_id TEXT NOT NULL,read_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,PRIMARY KEY(user_id,category,item_id))`),
+    env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_user_read_state ON user_read_state(user_id,category,read_at)`)
+  ]);
+}
 function configurePush(env){
   if(!env.VAPID_PUBLIC_KEY||!env.VAPID_PRIVATE_KEY)return false;
   webpush.setVapidDetails(env.VAPID_SUBJECT||'mailto:bednarik@dronetech.cz',env.VAPID_PUBLIC_KEY,env.VAPID_PRIVATE_KEY);
@@ -111,6 +117,19 @@ export default{
         if(url.pathname==='/push/test'&&request.method==='POST'){
           return json({ok:true,...await sendToUser(env,user.id,{title:'DFM upozornění fungují',body:'Tento telefon je připraven přijímat notifikace.',tag:'dfm-test',url:'./'})},200,origin);
         }
+      }
+      if(url.pathname==='/read-state'&&(request.method==='GET'||request.method==='POST')){
+        const user=await currentUser(request,env);if(!user)return json({error:'Přihlášení je vyžadováno.'},401,origin);
+        await ensureReadStateSchema(env);
+        if(request.method==='GET'){
+          const category=String(url.searchParams.get('category')||'').trim();if(!['chat','notifications'].includes(category))return json({error:'Neplatná kategorie.'},400,origin);
+          const rows=await env.DB.prepare('SELECT item_id FROM user_read_state WHERE user_id=? AND category=? ORDER BY read_at DESC LIMIT 1000').bind(user.id,category).all();
+          return json({ids:(rows.results||[]).map(item=>item.item_id)},200,origin);
+        }
+        const body=await request.json().catch(()=>null),category=String(body?.category||'').trim(),ids=[...new Set((Array.isArray(body?.ids)?body.ids:[]).map(id=>String(id).trim()).filter(Boolean))].slice(-500);
+        if(!['chat','notifications'].includes(category))return json({error:'Neplatná kategorie.'},400,origin);
+        if(ids.length)await env.DB.batch(ids.map(id=>env.DB.prepare('INSERT OR IGNORE INTO user_read_state(user_id,category,item_id) VALUES(?,?,?)').bind(user.id,category,id.slice(0,300))));
+        return json({ok:true},200,origin);
       }
       if(request.method==='DELETE'&&(url.pathname==='/chat'||url.pathname.startsWith('/chat/'))){
         const user=await currentUser(request,env);if(!user)return json({error:'Přihlášení je vyžadováno.'},401,origin);if(!hasRole(user,'admin'))return json({error:'Mazat zprávy může pouze administrátor.'},403,origin);
