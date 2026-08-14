@@ -70,21 +70,25 @@ export default function CloudShell(){
  const writeChatState=(knownIds,unreadIds)=>{if(!chatStorageKey)return;localStorage.setItem(chatStorageKey,JSON.stringify({knownIds:knownIds.slice(-100),unreadIds:unreadIds.slice(-100)}));};
  const chatConversationKey=item=>!item.recipient_id?'all':String(item.sender_id)===String(user?.id)?String(item.recipient_id):String(item.sender_id);
  const updateUnreadSummary=(unreadIds,sourceMessages=messages)=>{const unreadSet=new Set(unreadIds.map(String)),counts={};sourceMessages.forEach(item=>{if(!unreadSet.has(String(item.id)))return;const key=chatConversationKey(item);counts[key]=(counts[key]||0)+1;});setUnreadCount(unreadIds.length);setUnreadByTarget(counts);};
- const markConversationRead=(target,sourceMessages=messages)=>{const stored=readChatState()||{},ids=sourceMessages.map(x=>x.id),unread=(Array.isArray(stored.unreadIds)?stored.unreadIds:[]).filter(id=>{const item=sourceMessages.find(message=>String(message.id)===String(id));return item&&chatConversationKey(item)!==String(target);});writeChatState(ids,unread);updateUnreadSummary(unread,sourceMessages);};
+ const saveCloudRead=(category,ids)=>{if(!ids.length||!navigator.onLine||!token)return;void request('/read-state',{method:'POST',body:JSON.stringify({category,ids})}).catch(()=>{});};
+ const markConversationRead=(target,sourceMessages=messages)=>{const stored=readChatState()||{},ids=sourceMessages.map(x=>x.id),readIds=sourceMessages.filter(item=>chatConversationKey(item)===String(target)).map(item=>item.id),unread=(Array.isArray(stored.unreadIds)?stored.unreadIds:[]).filter(id=>{const item=sourceMessages.find(message=>String(message.id)===String(id));return item&&chatConversationKey(item)!==String(target);});writeChatState(ids,unread);updateUnreadSummary(unread,sourceMessages);saveCloudRead('chat',readIds);};
  const loadChat=async()=>{if(!navigator.onLine||!token||!chatStorageKey)return;try{
-   const nextMessages=(await request('/chat')).messages||[];
+   const [chatResult,readResult]=await Promise.all([request('/chat'),request('/read-state?category=chat')]);
+   const nextMessages=chatResult.messages||[],cloudRead=new Set((readResult.ids||[]).map(String));
    setMessages(nextMessages);
    const ids=nextMessages.map(x=>x.id),stored=readChatState();
-   if(!stored){
+   if(!stored&&!cloudRead.size){
      writeChatState(ids,[]);
      setUnreadCount(0);
+     saveCloudRead('chat',nextMessages.filter(item=>String(item.sender_id)!==String(user?.id)).map(item=>item.id));
      return;
    }
-   const known=new Set(Array.isArray(stored.knownIds)?stored.knownIds:[]);
-   const newIds=nextMessages.filter(item=>!known.has(item.id)&&String(item.sender_id)!==String(user?.id)).map(item=>item.id);
-   const previousUnread=(Array.isArray(stored.unreadIds)?stored.unreadIds:[]).filter(id=>ids.includes(id));
+   const known=new Set(Array.isArray(stored?.knownIds)?stored.knownIds:[]);
+   const newIds=nextMessages.filter(item=>!known.has(item.id)&&!cloudRead.has(String(item.id))&&String(item.sender_id)!==String(user?.id)).map(item=>item.id);
+   const previousUnread=(Array.isArray(stored?.unreadIds)?stored.unreadIds:[]).filter(id=>ids.includes(id)&&!cloudRead.has(String(id)));
    let unread=[...new Set([...previousUnread,...newIds])];
-   if(chatOpenRef.current)unread=unread.filter(id=>{const item=nextMessages.find(message=>String(message.id)===String(id));return item&&chatConversationKey(item)!==String(chatTargetRef.current);});
+   const beforeOpenFilter=unread;if(chatOpenRef.current)unread=unread.filter(id=>{const item=nextMessages.find(message=>String(message.id)===String(id));return item&&chatConversationKey(item)!==String(chatTargetRef.current);});
+   saveCloudRead('chat',beforeOpenFilter.filter(id=>!unread.includes(id)));
    writeChatState(ids,unread);
    updateUnreadSummary(unread,nextMessages);
  }catch{}};
