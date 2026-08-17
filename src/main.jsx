@@ -51,8 +51,7 @@ if (!localStorage.getItem('dfm_cloud_api_url')) {
 const updateSW = registerSW({
   immediate: true,
   onNeedRefresh() {
-    const accepted = window.confirm('Je dostupná nová verze DFM. Aktualizovat nyní?');
-    if (accepted) updateSW(true);
+    updateSW(true);
   },
   onOfflineReady() {
     console.info('DFM je připravené pro offline použití.');
