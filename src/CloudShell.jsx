@@ -94,9 +94,13 @@ export default function CloudShell(){
  }catch{}};
  const loadChatUsers=async()=>{try{const r=await request('/users/directory');setChatUsers((r.users||[]).filter(item=>String(item.id)!==String(user?.id)));}catch{setChatUsers([]);}};
  const openChat=()=>{
+   const unreadTargets=Object.entries(unreadByTarget).filter(([,count])=>Number(count)>0).map(([target])=>target);
+   const target=unreadTargets.length?unreadTargets[Math.floor(Math.random()*unreadTargets.length)]:chatTargetRef.current;
+   chatTargetRef.current=target;
+   setChatTarget(target);
    chatOpenRef.current=true;
    setChatOpen(true);
-   markConversationRead(chatTargetRef.current);
+   markConversationRead(target);
    loadChatUsers();
    loadChat();
  };
