@@ -65,4 +65,10 @@ function enhance(panel){
   const messages=panel.querySelector('.chat-messages');if(messages)new MutationObserver(()=>{if(deleteMode)markMessageIds(panel);}).observe(messages,{childList:true});
 }
 
+document.addEventListener('pointerdown',event=>{
+  document.querySelectorAll('.chat-admin-menu:not([hidden])').forEach(menu=>{
+    if(!menu.closest('.chat-admin-tools')?.contains(event.target))menu.hidden=true;
+  });
+});
+
 (async()=>{await checkAdmin();if(!isAdmin)return;const observer=new MutationObserver(()=>document.querySelectorAll('.chat-panel').forEach(enhance));observer.observe(document.body,{childList:true,subtree:true});document.querySelectorAll('.chat-panel').forEach(enhance);})();
